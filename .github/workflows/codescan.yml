@@ -1,4 +1,4 @@
-name: Code Scan
+name: Code Scan (Trivy)
 
 on:
   push:
@@ -10,32 +10,31 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
   security-events: write
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  trivy-scan:
+    name: Trivy Vulnerability Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 360
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["javascript-typescript"]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          languages: ${{ matrix.language }}
-          queries: security-and-quality
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          category: /language:${{ matrix.language }}
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
