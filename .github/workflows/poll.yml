@@ -1,0 +1,45 @@
+name: Revenue Engine — Poll
+
+on:
+  schedule:
+    # Every 5 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "Lane slug to poll (blank = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4  # Must finish before next cron tick
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Poll Moltgate inbox
+        env:
+          MOLTGATE_API_KEY: ${{ secrets.MOLTGATE_API_KEY }}
+          MOLTGATE_BASE_URL: ${{ secrets.MOLTGATE_BASE_URL || 'https://moltgate.com' }}
+          MOLTGATE_PROFILE_HANDLE: ${{ secrets.MOLTGATE_PROFILE_HANDLE }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LOG_LEVEL: INFO
+        run: |
+          LANE_FLAG=""
+          if [ -n "${{ github.event.inputs.lane }}" ]; then
+            LANE_FLAG="--lane ${{ github.event.inputs.lane }}"
+          fi
+          python main.py --once --direct-api --poll-only $LANE_FLAG
