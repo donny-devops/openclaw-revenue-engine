@@ -1,5 +1,9 @@
 {
   "scripts": {
+    "lint": "eslint . --ext .ts",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "build": "tsc"
     "prebuild": "npm run clean"
   },
   "dependencies": {
