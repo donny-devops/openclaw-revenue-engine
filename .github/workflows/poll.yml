@@ -1,8 +1,7 @@
-name: Revenue Engine — Poll
+name: Revenue Engine - Poll
 
 on:
   schedule:
-    # Every 5 minutes
     - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
@@ -14,32 +13,50 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: revenue-engine-poll
+  cancel-in-progress: true
+
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 4  # Must finish before next cron tick
+    timeout-minutes: 4
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Poll Moltgate inbox
         env:
           MOLTGATE_API_KEY: ${{ secrets.MOLTGATE_API_KEY }}
-          MOLTGATE_BASE_URL: ${{ secrets.MOLTGATE_BASE_URL || 'https://moltgate.com' }}
+          MOLTGATE_BASE_URL: ${{ secrets.MOLTGATE_BASE_URL }}
           MOLTGATE_PROFILE_HANDLE: ${{ secrets.MOLTGATE_PROFILE_HANDLE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LOG_LEVEL: INFO
+          INPUT_LANE: ${{ github.event.inputs.lane }}
         run: |
+          set -euo pipefail
+
+          BASE_URL="${MOLTGATE_BASE_URL:-https://moltgate.com}"
+          LANE="${INPUT_LANE:-}"
           LANE_FLAG=""
-          if [ -n "${{ github.event.inputs.lane }}" ]; then
-            LANE_FLAG="--lane ${{ github.event.inputs.lane }}"
+
+          if [ -n "$LANE" ]; then
+            LANE_FLAG="--lane $LANE"
           fi
+
+          export MOLTGATE_BASE_URL="$BASE_URL"
+
           python main.py --once --direct-api --poll-only $LANE_FLAG
