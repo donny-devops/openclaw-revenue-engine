@@ -1,4 +1,3 @@
-// ─── Bug 9 fix: load dotenv FIRST before any other imports read process.env ───
 import 'dotenv/config';
 
 import express, { Application, Request, Response, NextFunction } from 'express';
@@ -10,7 +9,6 @@ import { createLogger, format, transports } from 'winston';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 
-// ─── Bug 6 fix: wire up winston for structured logging ───
 const logger = createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
   format: format.combine(
@@ -24,7 +22,6 @@ const logger = createLogger({
 const app: Application = express();
 const PORT = process.env.PORT ?? 3000;
 
-// ─── Bug 8 fix: apply rate limiting ───
 const globalLimiter = rateLimit({
   windowMs: 60_000,
   max: 100,
@@ -41,18 +38,6 @@ const webhookLimiter = rateLimit({
   message: { error: 'Too many webhook requests.' },
 });
 
-// ─── Bug 3 + 4 fix: register webhook routes with express.raw() BEFORE global
-// json() middleware. Stripe and GitHub HMAC verification requires the raw
-// unparsed body Buffer. If json() runs first, req.body is a parsed object
-// and signature verification always fails.
-//
-// Fix for @typescript-eslint/no-misused-promises (lines 52 & 59):
-// Express route handlers that are async must be wrapped so that any rejected
-// promise is forwarded to the error-handling middleware via next(err).
-// Passing an async function directly as a middleware argument is flagged by
-// no-misused-promises because Express's type signature expects `() => void`,
-// not `() => Promise<void>`.  The wrapper converts the Promise rejection into
-// a synchronous next(err) call that Express understands.
 function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ): (req: Request, res: Response, next: NextFunction) => void {
@@ -75,24 +60,18 @@ app.post(
   asyncHandler(githubWebhookHandler)
 );
 
-// ─── Global Middleware (registered AFTER webhook routes) ───
 app.use(globalLimiter);
 app.use(helmet());
-
-// Bug 7 fix: apply CORS_ORIGIN and CORS_CREDENTIALS from environment
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   credentials: process.env.CORS_CREDENTIALS === 'true',
 }));
-
 app.use(express.json());
 
-// ─── Health Check ───
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── Root ───
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     name: 'openclaw-revenue-engine',
@@ -101,16 +80,12 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-// ─── 404 Handler ───
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-// ─── Bug 6 fix: global error handler uses winston with structured fields ───
-// ✅ Correct — synchronous callback only
-app.listen(PORT, () => {
-  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
-});
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack,
     path: req.path,
@@ -119,7 +94,6 @@ app.listen(PORT, () => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// ─── Start Server ───
 app.listen(PORT, () => {
   logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
 });
