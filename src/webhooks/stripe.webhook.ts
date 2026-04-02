@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
-// ─── Bug 5 fix: fail fast at module load if required env vars are missing ───
-// Previously used `as string` casts which silently allowed undefined values,
-// causing cryptic Stripe SDK errors at request time instead of a clear startup failure.
+// ─── Fail fast at module load if required env vars are missing ───
 function requireEnv(key: string): string {
   const val = process.env[key];
-  if (!val) throw new Error(`Missing required environment variable: ${key}`);
+  if (!val) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
   return val;
 }
 
@@ -23,9 +23,7 @@ const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET');
  * to its appropriate handler. Uses raw body for HMAC verification.
  *
  * IMPORTANT: This handler must be registered with express.raw({ type: 'application/json' })
- * in index.ts BEFORE the global express.json() middleware. The raw Buffer is
- * required by stripe.webhooks.constructEvent() for HMAC signature verification.
- * If json() runs first, req.body will be a parsed object and verification always fails.
+ * in index.ts BEFORE the global express.json() middleware.
  *
  * Supported events:
  *   - customer.subscription.created
@@ -40,17 +38,13 @@ export async function stripeWebhookHandler(
   res: Response
 ): Promise<void> {
   const sig = req.headers['stripe-signature'];
-
   if (!sig) {
     res.status(400).json({ error: 'Missing stripe-signature header' });
     return;
   }
 
   let event: Stripe.Event;
-
   try {
-    // req.body is a raw Buffer here because express.raw() is applied to this
-    // route before express.json() in index.ts (Bug 3 fix)
     event = stripe.webhooks.constructEvent(
       req.body as Buffer,
       sig,
@@ -68,27 +62,26 @@ export async function stripeWebhookHandler(
   try {
     switch (event.type) {
       case 'customer.subscription.created':
-        await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        handleSubscriptionCreated(event.data.object as Stripe.Subscription);
         break;
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
         break;
       case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
       case 'invoice.payment_succeeded':
-        await handlePaymentSucceeded(event.data.object as Stripe.Invoice);
+        handlePaymentSucceeded(event.data.object as Stripe.Invoice);
         break;
       case 'invoice.payment_failed':
-        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        handlePaymentFailed(event.data.object as Stripe.Invoice);
         break;
       case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
       default:
         console.log(`Unhandled Stripe event type: ${event.type}`);
     }
-
     res.status(200).json({ received: true, eventType: event.type });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -101,54 +94,42 @@ export async function stripeWebhookHandler(
 // Event Handlers
 // ---------------------------------------------------------------------------
 
-async function handleSubscriptionCreated(
-  subscription: Stripe.Subscription
-): Promise<void> {
+function handleSubscriptionCreated(subscription: Stripe.Subscription): void {
   console.log(`New subscription created: ${subscription.id}`);
-  console.log(`Customer: ${subscription.customer as string}`);
+  console.log(`Customer: ${String(subscription.customer)}`);
   console.log(`Status: ${subscription.status}`);
   // TODO: Provision access, update DB, send welcome email
 }
 
-async function handleSubscriptionUpdated(
-  subscription: Stripe.Subscription
-): Promise<void> {
+function handleSubscriptionUpdated(subscription: Stripe.Subscription): void {
   console.log(`Subscription updated: ${subscription.id}`);
   console.log(`New status: ${subscription.status}`);
   // TODO: Update access level, sync plan changes to DB
 }
 
-async function handleSubscriptionDeleted(
-  subscription: Stripe.Subscription
-): Promise<void> {
+function handleSubscriptionDeleted(subscription: Stripe.Subscription): void {
   console.log(`Subscription cancelled: ${subscription.id}`);
-  console.log(`Customer: ${subscription.customer as string}`);
+  console.log(`Customer: ${String(subscription.customer)}`);
   // TODO: Revoke access, update DB, send cancellation confirmation
 }
 
-async function handlePaymentSucceeded(
-  invoice: Stripe.Invoice
-): Promise<void> {
-  console.log(`Payment succeeded for invoice: ${invoice.id}`);
+function handlePaymentSucceeded(invoice: Stripe.Invoice): void {
+  console.log(`Payment succeeded for invoice: ${invoice.id ?? 'unknown'}`);
   console.log(`Amount: ${invoice.amount_paid} ${invoice.currency}`);
-  console.log(`Customer: ${invoice.customer as string}`);
+  console.log(`Customer: ${String(invoice.customer)}`);
   // TODO: Record payment in DB, generate internal invoice record
 }
 
-async function handlePaymentFailed(
-  invoice: Stripe.Invoice
-): Promise<void> {
-  console.log(`Payment failed for invoice: ${invoice.id}`);
-  console.log(`Customer: ${invoice.customer as string}`);
+function handlePaymentFailed(invoice: Stripe.Invoice): void {
+  console.log(`Payment failed for invoice: ${invoice.id ?? 'unknown'}`);
+  console.log(`Customer: ${String(invoice.customer)}`);
   console.log(`Next retry: ${invoice.next_payment_attempt ?? 'none'}`);
   // TODO: Send payment failure alert, flag account for retry
 }
 
-async function handleCheckoutCompleted(
-  session: Stripe.Checkout.Session
-): Promise<void> {
+function handleCheckoutCompleted(session: Stripe.Checkout.Session): void {
   console.log(`Checkout session completed: ${session.id}`);
-  console.log(`Customer: ${session.customer as string}`);
+  console.log(`Customer: ${String(session.customer)}`);
   console.log(`Payment status: ${session.payment_status}`);
   // TODO: Activate subscription, send onboarding email
 }
