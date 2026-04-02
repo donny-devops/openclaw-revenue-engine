@@ -1,0 +1,31 @@
+# CODEOWNERS
+#
+# This file defines code ownership for openclaw-revenue-engine.
+# Owners are automatically requested for review when pull requests
+# change files they own.
+#
+# Syntax: <pattern> <owner> [<owner> ...]
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for all files
+* @donny-devops
+
+# CI/CD workflows
+.github/workflows/ @donny-devops
+
+# Source code
+src/ @donny-devops
+
+# Security-sensitive files
+SECURITY.md @donny-devops
+.github/workflows/codeql.yml @donny-devops
+.github/workflows/trivy.yml @donny-devops
+
+# Infrastructure
+Dockerfile @donny-devops
+.env.example @donny-devops
+
+# Configuration
+tsconfig.json @donny-devops
+package.json @donny-devops
+.eslintrc.json @donny-devops
