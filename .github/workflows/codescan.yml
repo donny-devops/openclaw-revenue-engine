@@ -22,11 +22,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.35.0
-        with:
-          scan-type: fs
-          scan-ref: .
+     - name: Run Trivy filesystem scan
+       uses: aquasecurity/trivy-action@0.35.0  # Pin to safe, recent version [web:5][page:2]
+       with:
+         scan-type: 'fs'  # Filesystem scan of current directory [web:1]
+         scan-ref: '.'    # Scan the checked-out repo root [web:1]
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
