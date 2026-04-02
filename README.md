@@ -4,7 +4,7 @@
 ![ESLint](https://github.com/donny-devops/openclaw-revenue-engine/actions/workflows/eslint.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-Self-hosted revenue engine scaffold for OpenClaw agents — focused on webhook ingestion, secure middleware, and the platform foundations for usage metering and Stripe-backed billing.
+Self-hosted revenue engine scaffold for OpenClaw agents - focused on webhook ingestion, secure middleware, and the platform foundations for usage metering and Stripe-backed billing.
 
 ---
 
