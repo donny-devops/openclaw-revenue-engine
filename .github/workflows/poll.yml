@@ -50,14 +50,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Default base URL if secret is unset/empty
           BASE_URL="${MOLTGATE_BASE_URL:-https://moltgate.com}"
+          export MOLTGATE_BASE_URL="$BASE_URL"
+
+          # Normalize lane (works for schedule + workflow_dispatch)
           LANE="${INPUT_LANE:-}"
           LANE_FLAG=""
-
           if [ -n "$LANE" ]; then
             LANE_FLAG="--lane $LANE"
           fi
-
-          export MOLTGATE_BASE_URL="$BASE_URL"
 
           python main.py --once --direct-api --poll-only $LANE_FLAG
