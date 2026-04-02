@@ -2,9 +2,9 @@ name: CodeQL
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
@@ -12,13 +12,25 @@ on:
 permissions:
   actions: read
   contents: read
+  pull-requests: read
   security-events: write
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
-    name: Analyze (javascript-typescript)
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
 
     steps:
       - name: Checkout repository
@@ -27,11 +39,11 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: javascript-typescript
-          build-mode: none
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           queries: security-and-quality
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: /language:javascript-typescript
+          category: /language:${{ matrix.language }}
