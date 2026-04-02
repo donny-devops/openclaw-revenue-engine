@@ -27,11 +27,18 @@ const githubWebhookSecret = requireEnv('GITHUB_WEBHOOK_SECRET');
  *   - release           (release published)
  *   - workflow_run      (GitHub Actions workflow completed)
  *   - repository_dispatch (custom event triggered externally)
+ *
+ * Fix for @typescript-eslint/require-await:
+ * The handler does not currently perform any async I/O (DB writes, HTTP calls,
+ * etc.). Marking it async when no await is present triggers the lint rule.
+ * Removed the async keyword and changed the return type to void.
+ * The asyncHandler wrapper in index.ts still handles error propagation for
+ * when async operations are added in the future — just restore async/await then.
  */
-export async function githubWebhookHandler(
+export function githubWebhookHandler(
   req: Request,
   res: Response
-): Promise<void> {
+): void {
   const rawSignature = req.headers['x-hub-signature-256'];
   const event = req.headers['x-github-event'];
   const deliveryId = req.headers['x-github-delivery'];

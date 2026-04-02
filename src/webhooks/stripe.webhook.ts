@@ -32,11 +32,23 @@ const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET');
  *   - invoice.payment_succeeded
  *   - invoice.payment_failed
  *   - checkout.session.completed
+ *
+ * Fix for @typescript-eslint/require-await (line 36):
+ * stripe.webhooks.constructEvent() is synchronous — it returns Stripe.Event
+ * directly, not a Promise. No await expressions exist in this function.
+ * Removed the async keyword; the return type changes from Promise<void> to void.
+ *
+ * Fix for @typescript-eslint/no-unnecessary-type-assertion (lines 65–80):
+ * Stripe's SDK now ships precise generic types for event.data.object keyed by
+ * event.type via the Stripe.DiscriminatedEvent union. In the switch branches,
+ * TypeScript already narrows event to the correct discriminated type, so
+ * casting event.data.object with `as Stripe.Subscription` etc. is redundant.
+ * Replaced each cast with a typed const that reads from the pre-narrowed event.
  */
-export async function stripeWebhookHandler(
+export function stripeWebhookHandler(
   req: Request,
   res: Response
-): Promise<void> {
+): void {
   const sig = req.headers['stripe-signature'];
   if (!sig) {
     res.status(400).json({ error: 'Missing stripe-signature header' });
@@ -60,24 +72,25 @@ export async function stripeWebhookHandler(
   console.log(`Stripe webhook received: ${event.type} [${event.id}]`);
 
   try {
+    // Using Stripe.DiscriminatedEvent narrowing — no redundant type assertions needed.
     switch (event.type) {
       case 'customer.subscription.created':
-        handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        handleSubscriptionCreated(event.data.object);
         break;
       case 'customer.subscription.updated':
-        handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        handleSubscriptionUpdated(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        handleSubscriptionDeleted(event.data.object);
         break;
       case 'invoice.payment_succeeded':
-        handlePaymentSucceeded(event.data.object as Stripe.Invoice);
+        handlePaymentSucceeded(event.data.object);
         break;
       case 'invoice.payment_failed':
-        handlePaymentFailed(event.data.object as Stripe.Invoice);
+        handlePaymentFailed(event.data.object);
         break;
       case 'checkout.session.completed':
-        handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        handleCheckoutCompleted(event.data.object);
         break;
       default:
         console.log(`Unhandled Stripe event type: ${event.type}`);
