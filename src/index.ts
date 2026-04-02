@@ -45,18 +45,34 @@ const webhookLimiter = rateLimit({
 // json() middleware. Stripe and GitHub HMAC verification requires the raw
 // unparsed body Buffer. If json() runs first, req.body is a parsed object
 // and signature verification always fails.
+//
+// Fix for @typescript-eslint/no-misused-promises (lines 52 & 59):
+// Express route handlers that are async must be wrapped so that any rejected
+// promise is forwarded to the error-handling middleware via next(err).
+// Passing an async function directly as a middleware argument is flagged by
+// no-misused-promises because Express's type signature expects `() => void`,
+// not `() => Promise<void>`.  The wrapper converts the Promise rejection into
+// a synchronous next(err) call that Express understands.
+function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+): (req: Request, res: Response, next: NextFunction) => void {
+  return (req, res, next) => {
+    fn(req, res, next).catch(next);
+  };
+}
+
 app.post(
   '/webhooks/stripe',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  stripeWebhookHandler
+  asyncHandler(stripeWebhookHandler)
 );
 
 app.post(
   '/webhooks/github',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  githubWebhookHandler
+  asyncHandler(githubWebhookHandler)
 );
 
 // ─── Global Middleware (registered AFTER webhook routes) ───
