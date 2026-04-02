@@ -1,13 +1,28 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 
-const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET as string;
+// ─── Bug 5 fix: fail fast at module load if required env vars are missing ───
+// Previously used `as string` cast which silently allowed undefined,
+// causing all HMAC checks to fail with no useful error message.
+function requireEnv(key: string): string {
+  const val = process.env[key];
+  if (!val) throw new Error(`Missing required environment variable: ${key}`);
+  return val;
+}
+
+const githubWebhookSecret = requireEnv('GITHUB_WEBHOOK_SECRET');
 
 /**
  * GitHub Webhook Handler
  *
  * Verifies the GitHub HMAC-SHA256 signature from the X-Hub-Signature-256
  * header, then routes each event to its appropriate handler.
+ *
+ * IMPORTANT: This handler must be registered with express.raw({ type: 'application/json' })
+ * in index.ts BEFORE the global express.json() middleware. The raw Buffer is
+ * required for HMAC verification. If json() runs first, req.body is a parsed
+ * object; calling .toString('utf8') on it yields "[object Object]" and
+ * JSON.parse throws a SyntaxError on every request (Bug 4).
  *
  * Supported events:
  *   - push              (code pushed to any branch)
@@ -34,7 +49,7 @@ export async function githubWebhookHandler(
     return;
   }
 
-  // Verify HMAC-SHA256 signature
+  // Verify HMAC-SHA256 signature using the raw Buffer
   const isValid = verifyGitHubSignature(
     req.body as Buffer,
     signature,
@@ -47,7 +62,13 @@ export async function githubWebhookHandler(
     return;
   }
 
-  const payload = JSON.parse((req.body as Buffer).toString('utf8'));
+  // Bug 4 fix: safely parse the raw Buffer body.
+  // req.body is a Buffer here (express.raw applied in index.ts).
+  // Guard against already-parsed objects to be safe.
+  const payload = req.body instanceof Buffer
+    ? (JSON.parse(req.body.toString('utf8')) as Record<string, unknown>)
+    : (req.body as Record<string, unknown>);
+
   console.log(`GitHub webhook received: ${event} [delivery: ${deliveryId}]`);
 
   try {
@@ -55,27 +76,21 @@ export async function githubWebhookHandler(
       case 'push':
         await handlePushEvent(payload);
         break;
-
       case 'pull_request':
         await handlePullRequestEvent(payload);
         break;
-
       case 'release':
         await handleReleaseEvent(payload);
         break;
-
       case 'workflow_run':
         await handleWorkflowRunEvent(payload);
         break;
-
       case 'repository_dispatch':
         await handleRepositoryDispatch(payload);
         break;
-
       case 'ping':
         console.log('GitHub webhook ping received - connection verified');
         break;
-
       default:
         console.log(`Unhandled GitHub event: ${event}`);
     }
