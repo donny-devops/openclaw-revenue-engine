@@ -107,8 +107,10 @@ app.use((_req: Request, res: Response) => {
 });
 
 // ─── Bug 6 fix: global error handler uses winston with structured fields ───
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  logger.error('Unhandled error', {
+// ✅ Correct — synchronous callback only
+app.listen(PORT, () => {
+  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
+});
     message: err.message,
     stack: err.stack,
     path: req.path,
