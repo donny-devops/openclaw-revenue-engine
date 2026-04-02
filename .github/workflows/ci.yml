@@ -11,16 +11,33 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Initial CI
+  validate:
+    name: Lint, type-check, test, build
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Show workspace contents
-        run: ls -la
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
 
-      - name: Run starter script
-        run: echo "Hello, world!"
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Type check
+        run: npm run typecheck --if-present
+
+      - name: Test
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present

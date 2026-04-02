@@ -1,7 +1,16 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 
-const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET as string;
+// ─── Fail fast at module load if required env vars are missing ───
+function requireEnv(key: string): string {
+  const val = process.env[key];
+  if (!val) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return val;
+}
+
+const githubWebhookSecret = requireEnv('GITHUB_WEBHOOK_SECRET');
 
 /**
  * GitHub Webhook Handler
@@ -9,32 +18,45 @@ const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET as string;
  * Verifies the GitHub HMAC-SHA256 signature from the X-Hub-Signature-256
  * header, then routes each event to its appropriate handler.
  *
+ * IMPORTANT: This handler must be registered with express.raw({ type: 'application/json' })
+ * in index.ts BEFORE the global express.json() middleware.
+ *
  * Supported events:
  *   - push              (code pushed to any branch)
  *   - pull_request      (PR opened, closed, merged, synchronized)
  *   - release           (release published)
  *   - workflow_run      (GitHub Actions workflow completed)
  *   - repository_dispatch (custom event triggered externally)
+ *
+ * Fix for @typescript-eslint/require-await:
+ * The handler does not currently perform any async I/O (DB writes, HTTP calls,
+ * etc.). Marking it async when no await is present triggers the lint rule.
+ * Removed the async keyword and changed the return type to void.
+ * The asyncHandler wrapper in index.ts still handles error propagation for
+ * when async operations are added in the future — just restore async/await then.
  */
-export async function githubWebhookHandler(
+export function githubWebhookHandler(
   req: Request,
   res: Response
-): Promise<void> {
-  const signature = req.headers['x-hub-signature-256'] as string;
-  const event = req.headers['x-github-event'] as string;
-  const deliveryId = req.headers['x-github-delivery'] as string;
+): void {
+  const rawSignature = req.headers['x-hub-signature-256'];
+  const event = req.headers['x-github-event'];
+  const deliveryId = req.headers['x-github-delivery'];
+
+  const signature = Array.isArray(rawSignature) ? rawSignature[0] : rawSignature;
+  const eventName = Array.isArray(event) ? event[0] : event;
+  const delivery = Array.isArray(deliveryId) ? deliveryId[0] : deliveryId;
 
   if (!signature) {
     res.status(400).json({ error: 'Missing X-Hub-Signature-256 header' });
     return;
   }
 
-  if (!event) {
+  if (!eventName) {
     res.status(400).json({ error: 'Missing X-GitHub-Event header' });
     return;
   }
 
-  // Verify HMAC-SHA256 signature
   const isValid = verifyGitHubSignature(
     req.body as Buffer,
     signature,
@@ -42,52 +64,49 @@ export async function githubWebhookHandler(
   );
 
   if (!isValid) {
-    console.error(`GitHub webhook signature mismatch for delivery ${deliveryId}`);
+    console.error(`GitHub webhook signature mismatch for delivery ${delivery ?? 'unknown'}`);
     res.status(401).json({ error: 'Invalid webhook signature' });
     return;
   }
 
-  const payload = JSON.parse((req.body as Buffer).toString('utf8'));
-  console.log(`GitHub webhook received: ${event} [delivery: ${deliveryId}]`);
+  const payload: Record<string, unknown> =
+    req.body instanceof Buffer
+      ? (JSON.parse(req.body.toString('utf8')) as Record<string, unknown>)
+      : (req.body as Record<string, unknown>);
+
+  console.log(`GitHub webhook received: ${eventName} [delivery: ${delivery ?? 'unknown'}]`);
 
   try {
-    switch (event) {
+    switch (eventName) {
       case 'push':
-        await handlePushEvent(payload);
+        handlePushEvent(payload);
         break;
-
       case 'pull_request':
-        await handlePullRequestEvent(payload);
+        handlePullRequestEvent(payload);
         break;
-
       case 'release':
-        await handleReleaseEvent(payload);
+        handleReleaseEvent(payload);
         break;
-
       case 'workflow_run':
-        await handleWorkflowRunEvent(payload);
+        handleWorkflowRunEvent(payload);
         break;
-
       case 'repository_dispatch':
-        await handleRepositoryDispatch(payload);
+        handleRepositoryDispatch(payload);
         break;
-
       case 'ping':
         console.log('GitHub webhook ping received - connection verified');
         break;
-
       default:
-        console.log(`Unhandled GitHub event: ${event}`);
+        console.log(`Unhandled GitHub event: ${eventName}`);
     }
-
     res.status(200).json({
       received: true,
-      event,
-      delivery: deliveryId,
+      event: eventName,
+      delivery,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Error processing GitHub webhook ${event}: ${message}`);
+    console.error(`Error processing GitHub webhook ${eventName}: ${message}`);
     res.status(500).json({ error: 'Internal webhook processing error' });
   }
 }
@@ -104,8 +123,6 @@ function verifyGitHubSignature(
   const hmac = crypto.createHmac('sha256', secret);
   hmac.update(body);
   const digest = `sha256=${hmac.digest('hex')}`;
-
-  // Use timingSafeEqual to prevent timing attacks
   try {
     return crypto.timingSafeEqual(
       Buffer.from(digest, 'utf8'),
@@ -120,53 +137,45 @@ function verifyGitHubSignature(
 // Event Handlers
 // ---------------------------------------------------------------------------
 
-async function handlePushEvent(payload: Record<string, unknown>): Promise<void> {
-  const ref = payload['ref'] as string;
-  const repo = (payload['repository'] as Record<string, unknown>)['full_name'] as string;
-  const pusher = (payload['pusher'] as Record<string, unknown>)['name'] as string;
+function handlePushEvent(payload: Record<string, unknown>): void {
+  const ref = String(payload['ref']);
+  const repo = String((payload['repository'] as Record<string, unknown>)['full_name']);
+  const pusher = String((payload['pusher'] as Record<string, unknown>)['name']);
   console.log(`Push to ${repo} on ${ref} by ${pusher}`);
   // TODO: Trigger deployment pipeline, invalidate caches, notify team
 }
 
-async function handlePullRequestEvent(
-  payload: Record<string, unknown>
-): Promise<void> {
-  const action = payload['action'] as string;
+function handlePullRequestEvent(payload: Record<string, unknown>): void {
+  const action = String(payload['action']);
   const pr = payload['pull_request'] as Record<string, unknown>;
   const number = pr['number'] as number;
-  const title = pr['title'] as string;
-  const repo = (payload['repository'] as Record<string, unknown>)['full_name'] as string;
+  const title = String(pr['title']);
+  const repo = String((payload['repository'] as Record<string, unknown>)['full_name']);
   console.log(`PR #${number} ${action} in ${repo}: ${title}`);
   // TODO: Update review status, trigger preview deploys, notify Slack
 }
 
-async function handleReleaseEvent(
-  payload: Record<string, unknown>
-): Promise<void> {
-  const action = payload['action'] as string;
+function handleReleaseEvent(payload: Record<string, unknown>): void {
+  const action = String(payload['action']);
   const release = payload['release'] as Record<string, unknown>;
-  const tag = release['tag_name'] as string;
-  const repo = (payload['repository'] as Record<string, unknown>)['full_name'] as string;
+  const tag = String(release['tag_name']);
+  const repo = String((payload['repository'] as Record<string, unknown>)['full_name']);
   console.log(`Release ${action}: ${tag} in ${repo}`);
   // TODO: Trigger production deploy, update changelog, notify stakeholders
 }
 
-async function handleWorkflowRunEvent(
-  payload: Record<string, unknown>
-): Promise<void> {
+function handleWorkflowRunEvent(payload: Record<string, unknown>): void {
   const run = payload['workflow_run'] as Record<string, unknown>;
-  const name = run['name'] as string;
-  const status = run['status'] as string;
-  const conclusion = run['conclusion'] as string;
-  const repo = (payload['repository'] as Record<string, unknown>)['full_name'] as string;
+  const name = String(run['name']);
+  const status = String(run['status']);
+  const conclusion = String(run['conclusion']);
+  const repo = String((payload['repository'] as Record<string, unknown>)['full_name']);
   console.log(`Workflow "${name}" in ${repo}: ${status} / ${conclusion}`);
   // TODO: Alert on failures, update status dashboards
 }
 
-async function handleRepositoryDispatch(
-  payload: Record<string, unknown>
-): Promise<void> {
-  const eventType = payload['action'] as string;
+function handleRepositoryDispatch(payload: Record<string, unknown>): void {
+  const eventType = String(payload['action']);
   const clientPayload = payload['client_payload'] as Record<string, unknown>;
   console.log(`repository_dispatch event: ${eventType}`);
   console.log('Client payload:', JSON.stringify(clientPayload, null, 2));

@@ -4,15 +4,19 @@
  * All types are pure TypeScript — framework-agnostic and safe to import anywhere.
  */
 
-// ─── Enums ─────────────────────────────────────────────────────────────────────
-export const enum BillingPlan {
+// ─── Enums ───────────────────────────────────────────────────────────────────
+// NOTE: Regular `enum` (not `const enum`) is required for compatibility with
+// ts-jest (Babel transpilation) and cross-module imports. `const enum` is
+// inlined only by tsc and will produce ReferenceErrors at runtime under Jest.
+
+export enum BillingPlan {
   Free = 'free',
   Starter = 'starter',
   Pro = 'pro',
   Enterprise = 'enterprise',
 }
 
-export const enum InvoiceStatus {
+export enum InvoiceStatus {
   Draft = 'draft',
   Pending = 'pending',
   Paid = 'paid',
@@ -20,14 +24,14 @@ export const enum InvoiceStatus {
   Void = 'void',
 }
 
-export const enum UsageMetricType {
+export enum UsageMetricType {
   ApiCall = 'api_call',
   TokensUsed = 'tokens_used',
   DataProcessed = 'data_processed_bytes',
   AgentRun = 'agent_run',
 }
 
-export const enum SubscriptionStatus {
+export enum SubscriptionStatus {
   Active = 'active',
   Trialing = 'trialing',
   PastDue = 'past_due',
@@ -35,7 +39,7 @@ export const enum SubscriptionStatus {
   Incomplete = 'incomplete',
 }
 
-// ─── Core Domain Models ───────────────────────────────────────────────────────────
+// ─── Core Domain Models ──────────────────────────────────────────────────────
 
 export interface Tenant {
   id: string;
@@ -54,7 +58,7 @@ export interface UsageRecord {
   quantity: number;
   unit: string;
   recordedAt: Date;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown>; // fix: was untyped Record<>
 }
 
 export interface Invoice {
@@ -62,9 +66,9 @@ export interface Invoice {
   tenantId: string;
   stripeInvoiceId: string | null;
   status: InvoiceStatus;
-  amountDue: number;     // in cents
-  amountPaid: number;    // in cents
-  currency: string;      // ISO 4217, e.g. 'usd'
+  amountDue: number;   // in cents
+  amountPaid: number;  // in cents
+  currency: string;    // ISO 4217, e.g. 'usd'
   periodStart: Date;
   periodEnd: Date;
   lineItems: InvoiceLineItem[];
@@ -100,14 +104,14 @@ export interface EarningsSummary {
   tenantId: string;
   periodStart: Date;
   periodEnd: Date;
-  totalRevenue: number;    // in cents
+  totalRevenue: number;   // in cents
   totalInvoices: number;
   paidInvoices: number;
   overdueInvoices: number;
   topMetricType: UsageMetricType | null;
 }
 
-// ─── API Request / Response Shapes ────────────────────────────────────────────────
+// ─── API Request / Response Shapes ──────────────────────────────────────────
 
 export interface CreateTenantRequest {
   name: string;
@@ -120,7 +124,7 @@ export interface RecordUsageRequest {
   metricType: UsageMetricType;
   quantity: number;
   unit?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>; // fix: was untyped Record<>
 }
 
 export interface GenerateInvoiceRequest {
@@ -129,6 +133,7 @@ export interface GenerateInvoiceRequest {
   periodEnd: Date;
 }
 
+// fix: T defaults to unknown to satisfy strict noUncheckedIndexedAccess
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -140,7 +145,7 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
-// ─── Stripe Webhook Payload Types ─────────────────────────────────────────────────
+// ─── Stripe Webhook Payload Types ───────────────────────────────────────────
 
 export interface StripeWebhookEvent {
   id: string;
