@@ -211,5 +211,3 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 This project is licensed under the [MIT License](LICENSE).
  
 ---
-
-Choose a license that fits your intended use, such as MIT, Apache-2.0, or a private internal license.
