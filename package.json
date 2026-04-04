@@ -16,6 +16,14 @@
     "clean": "rm -rf dist",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts"
+    {
+  "type": "module",
+  "dependencies": {
+    "@azure-rest/ai-inference": "latest",
+    "@azure/core-auth": "latest",
+    "@azure/core-sse": "latest"
+  }
+}
   },
   "dependencies": {
     "cors": "^2.8.5",
