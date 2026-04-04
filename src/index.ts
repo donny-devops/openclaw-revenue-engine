@@ -60,7 +60,7 @@ app.post(
   asyncHandler(githubWebhookHandler)
 );
 
-app.use(globalLimiter);
+app.use((req, res, next) => { globalRateLimiter(req, res, next).catch(next); });
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
