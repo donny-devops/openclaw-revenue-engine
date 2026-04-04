@@ -5,7 +5,7 @@ Copy
  
 **Monetize autonomous AI agents through Moltgate's paid inbox layer.**
  
-> Turn your self-hosted OpenClaw agent into a revenue-generating machine — accept paid consulting requests, triage inbound by intent, and deliver AI-powered support services through priced message lanes.
+> Turn your self-hosted OpenClaw agent into a revenue-generating machine - accept paid consulting requests, triage inbound by intent, and deliver AI-powered support services through priced message lanes.
  
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -36,13 +36,13 @@ The **OpenClaw Revenue Engine** bridges [OpenClaw](https://github.com/openclaw/o
  
 ## Features
  
-- **Moltgate Lane Integration** — Supports all Moltgate tiers: Ping, Standard, Priority, Ultra, and Micro lanes, each with configurable pricing and SLA promises
-- **Autonomous Fetching** — Agent polls for paid messages via the Moltgate API on a configurable interval — no manual inbox checking
-- **Intent-Based Routing** — Incoming requests are triaged by lane tier, message content, and keyword signals to route to the right workflow
-- **Multi-Model Support** — Works with Anthropic Claude (default), OpenAI GPT, Google Gemini, or any model supported by OpenClaw's model-agnostic gateway
-- **Stripe-Backed Payments** — All payments handled through Moltgate's Stripe integration — card data never touches your infrastructure
-- **Service Catalog Ready** — Pre-configured for consulting services like OpenClaw security reviews, hardening audits, and AI workflow roadmaps (Ailephant)
-- **Crypto-Agile Security** — Designed with modular encryption for PQC readiness — a differentiator for FinTech buyers evaluating your services
+- **Moltgate Lane Integration** - Supports all Moltgate tiers: Ping, Standard, Priority, Ultra, and Micro lanes, each with configurable pricing and SLA promises
+- **Autonomous Fetching** - Agent polls for paid messages via the Moltgate API on a configurable interval - no manual inbox checking
+- **Intent-Based Routing** - Incoming requests are triaged by lane tier, message content, and keyword signals to route to the right workflow
+- **Multi-Model Support** - Works with Anthropic Claude (default), OpenAI GPT, Google Gemini, or any model supported by OpenClaw's model-agnostic gateway
+- **Stripe-Backed Payments** - All payments handled through Moltgate's Stripe integration - card data never touches your infrastructure
+- **Service Catalog Ready** - Pre-configured for consulting services like OpenClaw security reviews, hardening audits, and AI workflow roadmaps (Ailephant)
+- **Crypto-Agile Security** - Designed with modular encryption for PQC readiness - a differentiator for FinTech buyers evaluating your services
  
 ---
  
@@ -89,7 +89,7 @@ AGENT_NAME=YourAgentName
 MOLTGATE_API_KEY=your-moltgate-api-key
 MOLTGATE_POLL_INTERVAL=30000
  
-# Stripe (handled via Moltgate — no direct keys needed)
+# Stripe (handled via Moltgate - no direct keys needed)
 ```
  
 > ⚠️ **Never commit your `.env` file.** Make sure `.env` is in your `.gitignore`. If you accidentally expose an API key, rotate it immediately at your provider's console.
@@ -144,11 +144,11 @@ Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response wi
  
 The revenue engine ships with templates for common monetized agent services:
  
-- **OpenClaw Security Review** ($10) — One focused security question answered by your agent
-- **OpenClaw Hardening Audit** ($30) — Full security posture review for OpenClaw builders
-- **Ailephant AI Roadmap** — Practical AI workflow roadmaps for founders and teams
-- **DevOps Consulting** — Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
-- **Code Review** — Automated code quality and security analysis with detailed feedback
+- **OpenClaw Security Review** ($10) - One focused security question answered by your agent
+- **OpenClaw Hardening Audit** ($30) - Full security posture review for OpenClaw builders
+- **Ailephant AI Roadmap** - Practical AI workflow roadmaps for founders and teams
+- **DevOps Consulting** - Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
+- **Code Review** - Automated code quality and security analysis with detailed feedback
  
 Build your own services by adding handlers to `src/services/` and registering them in the lane routing config.
  
@@ -158,12 +158,12 @@ Build your own services by adding handlers to `src/services/` and registering th
  
 This project follows a security-first approach:
  
-- **No raw card data** — All payments delegated to Stripe via Moltgate
-- **API key scoping** — Keys are scoped per-agent and per-lane with least-privilege access
-- **Webhook verification** — All Moltgate webhooks verified via Ed25519 signatures
-- **Rate limiting** — Configurable per-tier rate limits to prevent abuse
-- **Crypto-agile architecture** — Encryption layer is modular and swappable for post-quantum readiness (NIST FIPS 203/204/205, ML-KEM, ML-DSA compatible)
-- **Environment isolation** — Secrets managed via `.env`, never hardcoded
+- **No raw card data** - All payments delegated to Stripe via Moltgate
+- **API key scoping** - Keys are scoped per-agent and per-lane with least-privilege access
+- **Webhook verification** - All Moltgate webhooks verified via Ed25519 signatures
+- **Rate limiting** - Configurable per-tier rate limits to prevent abuse
+- **Crypto-agile architecture** - Encryption layer is modular and swappable for post-quantum readiness (NIST FIPS 203/204/205, ML-KEM, ML-DSA compatible)
+- **Environment isolation** - Secrets managed via `.env`, never hardcoded
  
 For the full security posture document, see [SECURITY.md](SECURITY.md).
  
