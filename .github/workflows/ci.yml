@@ -12,12 +12,12 @@ permissions:
 
 jobs:
   validate:
-    name: Lint, type-check, test, build
+    name: Lint, type-check, test, build (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20]
+        node-version: [22]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -26,9 +26,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Lint
         run: npm run lint --if-present
