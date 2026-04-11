@@ -143,14 +143,15 @@ Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response wi
 ## Service Examples
  
 The revenue engine ships with templates for common monetized agent services:
- 
+
+- **Quick Question | AI README Generator** ($5, 20 min SLA) - Send a GitHub repo URL and get a portfolio-quality `README.md` back. Covers project overview, installation, usage, tech stack, badges, folder structure, and contributing section — all auto-generated from your actual codebase by MaxClaw. See `lanes/quick_question.py` and `services/readme_generator/`.
 - **OpenClaw Security Review** ($10) - One focused security question answered by your agent
 - **OpenClaw Hardening Audit** ($30) - Full security posture review for OpenClaw builders
 - **Ailephant AI Roadmap** - Practical AI workflow roadmaps for founders and teams
 - **DevOps Consulting** - Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
 - **Code Review** - Automated code quality and security analysis with detailed feedback
- 
-Build your own services by adding handlers to `src/services/` and registering them in the lane routing config.
+
+Build your own services by adding a handler module under `lanes/` and registering its slug in `config/lanes.yaml`. Handlers are pure Python and run once per poll cycle of `.github/workflows/poll.yml`.
  
 ---
  
