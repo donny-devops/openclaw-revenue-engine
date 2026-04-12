@@ -9,7 +9,7 @@ What we collect:
   - name, description, default branch, primary language, topics
   - language breakdown (bytes per language)
   - license (spdx_id or key)
-  - depth-2 folder tree (filenames only, no content)
+  - depth-2 folder tree (filenames only, no content) via non-recursive BFS
   - the first matching manifest among: package.json, requirements.txt,
     pyproject.toml, Cargo.toml, go.mod, Gemfile, composer.json
   - the first matching entry-point file among common candidates
@@ -118,15 +118,11 @@ def _get_client() -> Github:
     return Github()
 
 
-def _safe_get_contents(repo, path: str):
-    try:
-        return repo.get_contents(path)
-    except GithubException:
-        return None
-
-
 def _read_text_contents(repo, path: str, max_chars: int) -> str:
-    contents = _safe_get_contents(repo, path)
+    try:
+        contents = repo.get_contents(path)
+    except GithubException:
+        return ""
     if contents is None:
         return ""
     try:
@@ -139,26 +135,58 @@ def _read_text_contents(repo, path: str, max_chars: int) -> str:
 
 
 def _collect_tree_depth2(repo, default_branch: str) -> list[str]:
-    """Return up to MAX_TREE_ENTRIES paths, depth <= 2, sorted for determinism."""
+    """Return up to MAX_TREE_ENTRIES paths, depth <= 2, using non-recursive BFS.
+
+    Instead of fetching the entire recursive tree (which can be huge for
+    monorepos and may be truncated at 100k entries), we fetch the root tree
+    non-recursively and then selectively fetch one more level for each
+    directory found at root.
+    """
     try:
-        tree = repo.get_git_tree(default_branch, recursive=True)
+        root_tree = repo.get_git_tree(default_branch, recursive=False)
     except GithubException as e:
         logger.warning("get_git_tree failed for %s: %s", repo.full_name, e)
         return []
+
     paths: list[str] = []
-    for entry in tree.tree:
-        path = entry.path
-        depth = path.count("/")
-        if depth <= 2:
-            suffix = "/" if entry.type == "tree" else ""
-            paths.append(path + suffix)
+    subtree_queue: list[tuple[str, str]] = []  # (parent_path, tree_sha)
+
+    for entry in root_tree.tree:
+        if entry.type == "tree":
+            paths.append(entry.path + "/")
+            subtree_queue.append((entry.path, entry.sha))
+        else:
+            paths.append(entry.path)
+
+    # Fetch depth-1 subtrees (gives us depth-2 total)
+    for parent_path, tree_sha in subtree_queue:
+        if len(paths) >= MAX_TREE_ENTRIES:
+            break
+        try:
+            subtree = repo.get_git_tree(tree_sha, recursive=False)
+        except GithubException as e:
+            logger.warning(
+                "get_git_tree failed for %s at %s: %s",
+                repo.full_name, parent_path, e,
+            )
+            continue
+        for entry in subtree.tree:
+            child_path = f"{parent_path}/{entry.path}"
+            if entry.type == "tree":
+                paths.append(child_path + "/")
+            else:
+                paths.append(child_path)
+            if len(paths) >= MAX_TREE_ENTRIES:
+                break
+
     paths.sort()
     return paths[:MAX_TREE_ENTRIES]
 
 
-def _detect_first(repo, candidates: tuple[str, ...]) -> str:
+def _detect_first(tree_paths: set[str], candidates: tuple[str, ...]) -> str:
+    """Find the first candidate present in the pre-fetched tree paths (zero API calls)."""
     for candidate in candidates:
-        if _safe_get_contents(repo, candidate) is not None:
+        if candidate in tree_paths:
             return candidate
     return ""
 
@@ -187,19 +215,25 @@ def analyze_repo(owner: str, repo_name: str) -> RepoFacts:
 
     tree = _collect_tree_depth2(repo, default_branch)
 
-    manifest_filename = _detect_first(repo, _MANIFEST_CANDIDATES)
+    # Build a set of bare paths (strip trailing "/" from dirs) for O(1) lookup
+    tree_set = {p.rstrip("/") for p in tree}
+
+    # Detect manifest/entrypoint/README using the tree instead of extra API calls
+    manifest_filename = _detect_first(tree_set, _MANIFEST_CANDIDATES)
     manifest_snippet = ""
     if manifest_filename:
         manifest_snippet = _read_text_contents(repo, manifest_filename, MAX_MANIFEST_CHARS)
 
-    entrypoint_filename = _detect_first(repo, _ENTRYPOINT_CANDIDATES)
+    entrypoint_filename = _detect_first(tree_set, _ENTRYPOINT_CANDIDATES)
 
     existing_readme_excerpt = ""
-    for candidate in ("README.md", "README.rst", "README.txt", "README"):
-        excerpt = _read_text_contents(repo, candidate, MAX_EXISTING_README_CHARS)
-        if excerpt:
-            existing_readme_excerpt = excerpt
-            break
+    readme_candidates = ("README.md", "README.rst", "README.txt", "README")
+    for candidate in readme_candidates:
+        if candidate in tree_set:
+            excerpt = _read_text_contents(repo, candidate, MAX_EXISTING_README_CHARS)
+            if excerpt:
+                existing_readme_excerpt = excerpt
+                break
 
     has_ci = any(p.startswith(".github/workflows/") for p in tree)
     has_tests = any(

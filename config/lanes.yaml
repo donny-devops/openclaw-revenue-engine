@@ -22,4 +22,4 @@ handlers:
   #     auto-generated from your actual codebase.
   #
   # SLA: 20 minutes from "paid message received" to "Gist delivered".
-  quick-question: lanes.quick_question:handle
+  quick-question-readme-generator: lanes.quick_question:handle

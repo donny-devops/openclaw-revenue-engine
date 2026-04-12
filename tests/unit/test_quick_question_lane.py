@@ -21,6 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from github import GithubException
+
 from lanes import quick_question  # noqa: E402
 from services.moltgate_client import MoltgateMessage  # noqa: E402
 
@@ -29,7 +31,7 @@ def _msg(
     *,
     id_: str,
     sender_url: str | None,
-    lane_slug: str = "quick-question",
+    lane_slug: str = "quick-question-readme-generator",
 ) -> MoltgateMessage:
     return MoltgateMessage(
         id=id_,
@@ -145,6 +147,46 @@ def test_generate_failure_is_counted_as_error_not_crash():
     client.mark_processed.assert_not_called()
     # We do NOT archive on transient errors — let the next poll retry.
     client.mark_archived.assert_not_called()
+
+
+def test_permanent_github_404_archives_message():
+    """A 404 GithubException should archive the message, not leave it in NEW."""
+    client = MagicMock()
+    stub = _msg(id_="m_perm", sender_url="https://github.com/acme/nonexistent")
+    client.list_new_messages.return_value = [stub]
+    client.get_message.return_value = stub
+
+    with patch.object(
+        quick_question,
+        "generate",
+        side_effect=GithubException(status=404, data={"message": "Not Found"}),
+    ):
+        result = quick_question.handle(client=client)
+
+    assert result.processed == 0
+    assert result.errors == 1
+    client.mark_archived.assert_called_once_with("m_perm")
+    client.mark_processed.assert_not_called()
+
+
+def test_transient_5xx_leaves_message_new():
+    """A transient RuntimeError should leave the message in NEW for retry."""
+    client = MagicMock()
+    stub = _msg(id_="m_trans", sender_url="https://github.com/acme/demo")
+    client.list_new_messages.return_value = [stub]
+    client.get_message.return_value = stub
+
+    with patch.object(
+        quick_question,
+        "generate",
+        side_effect=RuntimeError("upstream API down"),
+    ):
+        result = quick_question.handle(client=client)
+
+    assert result.processed == 0
+    assert result.errors == 1
+    client.mark_archived.assert_not_called()
+    client.mark_processed.assert_not_called()
 
 
 def test_dry_run_does_not_mutate_moltgate():

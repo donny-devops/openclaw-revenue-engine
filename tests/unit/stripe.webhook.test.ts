@@ -71,6 +71,7 @@ describe('stripeWebhookHandler — missing stripe-signature header', () => {
     stripeWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     expect(body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
   });
 });
@@ -96,6 +97,7 @@ describe('stripeWebhookHandler — invalid signature', () => {
 
     expect(statusCode).toBe(400);
     expect(body).toMatchObject({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       error: expect.stringContaining('signature verification failed'),
     });
     errorSpy.mockRestore();

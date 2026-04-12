@@ -25,6 +25,11 @@ DEFAULT_MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS = 4096
 
 
+def _escape_fences(text: str) -> str:
+    """Escape triple-backtick sequences in untrusted text to prevent fence breakouts."""
+    return text.replace("```", "` ` `")
+
+
 def _render_facts_markdown(facts: RepoFacts) -> str:
     """Render RepoFacts as a compact Markdown block for the user message."""
     lines: list[str] = []
@@ -47,10 +52,10 @@ def _render_facts_markdown(facts: RepoFacts) -> str:
     lines.append(f"- entrypoint_filename: {facts.entrypoint_filename or '(none detected)'}")
     lines.append(f"- manifest_filename: {facts.manifest_filename or '(none detected)'}")
     if facts.manifest_snippet:
-        lines.append(f"- manifest_snippet (```{facts.manifest_filename or ''}```):")
-        lines.append("```")
-        lines.append(facts.manifest_snippet)
-        lines.append("```")
+        lines.append(f"- manifest_snippet ({facts.manifest_filename or ''}):")
+        lines.append('<untrusted-data source="manifest">')
+        lines.append(_escape_fences(facts.manifest_snippet))
+        lines.append("</untrusted-data>")
 
     lines.append("- tree_depth2:")
     for path in facts.tree_depth2[:60]:
@@ -60,9 +65,9 @@ def _render_facts_markdown(facts: RepoFacts) -> str:
 
     if facts.existing_readme_excerpt:
         lines.append("- existing_readme_excerpt (for style reference only, do not copy):")
-        lines.append("```")
-        lines.append(facts.existing_readme_excerpt)
-        lines.append("```")
+        lines.append('<untrusted-data source="existing_readme">')
+        lines.append(_escape_fences(facts.existing_readme_excerpt))
+        lines.append("</untrusted-data>")
 
     return "\n".join(lines)
 

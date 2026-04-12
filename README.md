@@ -113,13 +113,17 @@ openclaw-revenue-engine/
 ├── src/
 │   ├── agent/          # OpenClaw agent configuration and skills
 │   ├── engine/         # Core revenue engine — polling, triage, routing
-│   ├── lanes/          # Lane-specific handlers (Ping, Standard, Priority, Ultra, Micro)
+│   ├── lanes/          # TypeScript lane stubs (Stripe/webhook-based)
 │   ├── services/       # Service catalog definitions and execution logic
 │   └── utils/          # Helpers — logging, rate limiting, error handling
 ├── config/
-│   └── lanes.json      # Lane pricing, SLA, and routing rules
+│   └── lanes.yaml      # Lane slug → handler routing map
+├── lanes/              # Python lane handlers (Moltgate polling)
+├── services/           # Python service modules (readme_generator, moltgate_client)
 ├── .env.example        # Template environment variables
 ├── .gitignore
+├── main.py             # Python polling entry point (cron via poll.yml)
+├── requirements.txt    # Python dependencies
 ├── package.json
 └── README.md
 ```
@@ -136,7 +140,7 @@ openclaw-revenue-engine/
 | **Priority** | High-urgency business requests | $25–$75 | 4 hours |
 | **Ultra** | Premium agent workflows, heavy runtime | $75–$200+ | 1 hour |
  
-Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response windows, and routing logic to match your service offerings.
+Lanes are fully configurable in `config/lanes.yaml`. Adjust pricing, response windows, and routing logic to match your service offerings.
  
 ---
  

@@ -38,29 +38,21 @@ const webhookLimiter = rateLimit({
   message: { error: 'Too many webhook requests.' },
 });
 
-function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): (req: Request, res: Response, next: NextFunction) => void {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
-}
-
 app.post(
   '/webhooks/stripe',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  asyncHandler(stripeWebhookHandler)
+  stripeWebhookHandler as express.RequestHandler
 );
 
 app.post(
   '/webhooks/github',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  asyncHandler(githubWebhookHandler)
+  githubWebhookHandler as express.RequestHandler
 );
 
-app.use((req, res, next) => { globalRateLimiter(req, res, next).catch(next); });
+app.use(globalLimiter);
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',

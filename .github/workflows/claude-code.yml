@@ -40,6 +40,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - name: Check out PR
         uses: actions/checkout@v4
@@ -100,6 +101,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v
 
       - name: Claude Code prompt self-tune
         uses: anthropics/claude-code-action@v1

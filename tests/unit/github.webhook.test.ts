@@ -23,10 +23,11 @@ beforeAll(() => {
 // Lazy import — resolved after beforeAll sets env vars
 let githubWebhookHandler: (req: Request, res: Response) => void;
 
-beforeAll(async () => {
+beforeAll(() => {
   // Use isolateModules so the module picks up our test secret
-  await jest.isolateModules(async () => {
-    const mod = await import('../../src/webhooks/github.webhook');
+  jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('../../src/webhooks/github.webhook') as { githubWebhookHandler: typeof githubWebhookHandler };
     githubWebhookHandler = mod.githubWebhookHandler;
   });
 });
@@ -68,7 +69,7 @@ describe('githubWebhookHandler — missing headers', () => {
     githubWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Signature') });
+    expect(body).toMatchObject({ error: expect.stringContaining('Signature') as unknown });
   });
 
   it('returns 400 when X-GitHub-Event is absent', () => {
@@ -82,7 +83,7 @@ describe('githubWebhookHandler — missing headers', () => {
     githubWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Event') });
+    expect(body).toMatchObject({ error: expect.stringContaining('Event') as unknown });
   });
 });
 
@@ -101,7 +102,7 @@ describe('githubWebhookHandler — signature verification', () => {
     githubWebhookHandler(req as Request, res as Response);
 
     expect(statusCode).toBe(401);
-    expect(body).toMatchObject({ error: expect.stringContaining('signature') });
+    expect(body).toMatchObject({ error: expect.stringContaining('signature') as unknown });
   });
 
   it('returns 401 when signature length mismatches (timing-safe guard)', () => {

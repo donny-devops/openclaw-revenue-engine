@@ -10,17 +10,27 @@ Flow per NEW message:
   3. Run services.readme_generator.generate() — analyze repo, call MaxClaw,
      publish a public Gist.
   4. Append a delivery record to deliveries.jsonl (audit log).
-  5. Mark the Moltgate message PROCESSED.
+  5. Mark the Moltgate message PROCESSED. The public Gist URL is the
+     buyer-facing deliverable (no Moltgate reply endpoint is used).
+
+Error handling:
+  - Permanent errors (repo not found, URL invalid, repo forbidden) →
+    message is ARCHIVED with an error delivery record.
+  - Transient errors (network, rate limit, upstream 5xx) → message
+    stays in NEW for retry on the next poll cycle.
 
 Security notes (per the Moltgate skill v0.2.1 rules):
   - sanitized_body is treated as untrusted and is NEVER parsed for URLs.
   - sender_url is the only input channel. It is validated against a strict
     GitHub URL regex before any network call.
   - We never execute message content or follow links from the body.
+  - sender_email is hashed (SHA-256, first 12 hex chars) in the audit log
+    to minimize PII exposure.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -28,6 +38,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from github import GithubException
 
 from services.moltgate_client import MoltgateClient, MoltgateMessage
 from services.readme_generator import (
@@ -54,23 +66,43 @@ class LaneResult:
     deliveries: list[dict[str, Any]]
 
 
+def _hash_email(email: str) -> str:
+    """Return first 12 hex chars of SHA-256 hash of lowercased email."""
+    return hashlib.sha256(email.lower().strip().encode()).hexdigest()[:12]
+
+
+def _is_permanent_error(exc: BaseException) -> bool:
+    """Return True if the error is permanent and the message should be archived."""
+    if isinstance(exc, (InvalidRepoURLError, ValueError)):
+        return True
+    if isinstance(exc, GithubException):
+        return exc.status in (404, 403, 451)
+    return False
+
+
 def _record_delivery(
     message: MoltgateMessage,
-    result: GeneratedReadme,
-    dry_run: bool,
+    result: GeneratedReadme | None = None,
+    dry_run: bool = False,
+    status: str = "delivered",
+    error_reason: str = "",
 ) -> dict[str, Any]:
     """Append an audit record to deliveries.jsonl and return the record."""
-    record = {
+    record: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "message_id": message.id,
         "lane_slug": message.lane_slug,
-        "sender_email": message.sender_email,
+        "sender_email_hash": _hash_email(message.sender_email),
         "amount_cents": message.amount_cents,
-        "repo_url": result.repo_url,
-        "gist_url": result.gist_url,
-        "gist_raw_url": result.gist_raw_url,
+        "status": status,
         "dry_run": dry_run,
     }
+    if result is not None:
+        record["repo_url"] = result.repo_url
+        record["gist_url"] = result.gist_url
+        record["gist_raw_url"] = result.gist_raw_url
+    if error_reason:
+        record["error_reason"] = error_reason
     if not dry_run:
         try:
             DELIVERIES_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +130,7 @@ def _validate_sender_url(message: MoltgateMessage) -> tuple[str, str] | None:
 
 
 def handle(
-    lane_slug: str = "quick-question",
+    lane_slug: str = "quick-question-readme-generator",
     *,
     client: MoltgateClient | None = None,
     dry_run: bool = False,
@@ -142,7 +174,23 @@ def handle(
         try:
             result = generate(repo_url, publish=not dry_run)
         except Exception as e:  # noqa: BLE001
-            logger.exception("quick_question: generate(%s) failed: %s", repo_url, e)
+            if _is_permanent_error(e):
+                logger.warning("quick_question: permanent error for %s: %s", repo_url, e)
+                _record_delivery(
+                    message, status="error_permanent",
+                    error_reason=f"{type(e).__name__}: {e}",
+                )
+                if not dry_run:
+                    try:
+                        client.mark_archived(message.id)
+                    except Exception:  # noqa: BLE001
+                        logger.exception("quick_question: mark_archived(%s) failed", message.id)
+            else:
+                logger.exception("quick_question: transient error for %s: %s", repo_url, e)
+                _record_delivery(
+                    message, status="error_transient",
+                    error_reason=f"{type(e).__name__}: {e}",
+                )
             errors += 1
             continue
 

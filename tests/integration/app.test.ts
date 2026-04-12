@@ -30,7 +30,7 @@ describe('GET /', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       name: 'openclaw-revenue-engine',
-      version: expect.any(String),
+      version: expect.any(String) as unknown,
       docs: '/health',
     });
   });
@@ -43,15 +43,16 @@ describe('GET /health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       status: 'ok',
-      timestamp: expect.any(String),
+      timestamp: expect.any(String) as unknown,
     });
   });
 
   it('timestamp is a valid ISO 8601 string', async () => {
     const res = await request(app).get('/health');
-    const timestamp = new Date(res.body.timestamp as string);
+    const body = res.body as { timestamp: string };
+    const timestamp = new Date(body.timestamp);
 
-    expect(timestamp.toISOString()).toBe(res.body.timestamp);
+    expect(timestamp.toISOString()).toBe(body.timestamp);
   });
 });
 
@@ -89,7 +90,7 @@ describe('POST /webhooks/stripe', () => {
     // Should hit the handler, which checks for stripe-signature
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
-      error: expect.stringContaining('stripe-signature'),
+      error: expect.stringContaining('stripe-signature') as unknown,
     });
   });
 
@@ -113,7 +114,7 @@ describe('POST /webhooks/github', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
-      error: expect.stringContaining('Signature'),
+      error: expect.stringContaining('Signature') as unknown,
     });
   });
 
