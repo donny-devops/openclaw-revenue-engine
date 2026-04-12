@@ -9,6 +9,15 @@ import { createLogger, format, transports } from 'winston';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 
+/**
+ * Wrap a synchronous (req, res) handler as Express middleware.
+ * Unlike a bare `as RequestHandler` cast this will surface a type error
+ * if the handler signature ever changes (e.g. becomes async).
+ */
+function syncHandler(fn: (req: express.Request, res: express.Response) => void): express.RequestHandler {
+  return (req, res, _next) => fn(req, res);
+}
+
 const logger = createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
   format: format.combine(
@@ -38,29 +47,21 @@ const webhookLimiter = rateLimit({
   message: { error: 'Too many webhook requests.' },
 });
 
-function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): (req: Request, res: Response, next: NextFunction) => void {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
-}
-
 app.post(
   '/webhooks/stripe',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  asyncHandler(stripeWebhookHandler)
+  syncHandler(stripeWebhookHandler)
 );
 
 app.post(
   '/webhooks/github',
   webhookLimiter,
   express.raw({ type: 'application/json' }),
-  asyncHandler(githubWebhookHandler)
+  syncHandler(githubWebhookHandler)
 );
 
-app.use((req, res, next) => { globalRateLimiter(req, res, next).catch(next); });
+app.use(globalLimiter);
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
