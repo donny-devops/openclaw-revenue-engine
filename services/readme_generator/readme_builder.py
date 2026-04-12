@@ -26,8 +26,15 @@ MAX_TOKENS = 4096
 
 
 def _escape_fences(text: str) -> str:
-    """Escape triple-backtick sequences in untrusted text to prevent fence breakouts."""
-    return text.replace("```", "` ` `")
+    """Escape triple-backtick sequences and angle brackets in untrusted text.
+
+    Prevents both Markdown fence breakouts and XML tag injection (e.g. a
+    manifest containing ``</untrusted-data>`` could otherwise close the
+    wrapper tag prematurely).
+    """
+    text = text.replace("```", "` ` `")
+    text = text.replace("<", "&lt;").replace(">", "&gt;")
+    return text
 
 
 def _render_facts_markdown(facts: RepoFacts) -> str:

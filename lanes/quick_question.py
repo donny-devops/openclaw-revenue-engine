@@ -179,6 +179,7 @@ def handle(
                 _record_delivery(
                     message, status="error_permanent",
                     error_reason=f"{type(e).__name__}: {e}",
+                    dry_run=dry_run,
                 )
                 if not dry_run:
                     try:
@@ -190,6 +191,7 @@ def handle(
                 _record_delivery(
                     message, status="error_transient",
                     error_reason=f"{type(e).__name__}: {e}",
+                    dry_run=dry_run,
                 )
             errors += 1
             continue

@@ -207,3 +207,53 @@ def test_dry_run_does_not_mutate_moltgate():
     client.mark_processed.assert_not_called()
     client.mark_archived.assert_not_called()
     assert result.deliveries[0]["dry_run"] is True
+
+
+def test_dry_run_permanent_error_does_not_write_to_filesystem(tmp_path):
+    """dry_run=True + permanent error must not write to deliveries.jsonl."""
+    log_path = tmp_path / "deliveries.jsonl"
+    client = MagicMock()
+    stub = _msg(id_="m_drp", sender_url="https://github.com/acme/nonexistent")
+    client.list_new_messages.return_value = [stub]
+    client.get_message.return_value = stub
+
+    with (
+        patch.object(
+            quick_question,
+            "generate",
+            side_effect=GithubException(status=404, data={"message": "Not Found"}),
+        ),
+        patch.object(quick_question, "DELIVERIES_LOG_PATH", log_path),
+    ):
+        result = quick_question.handle(client=client, dry_run=True)
+
+    assert result.errors == 1
+    # dry_run should prevent filesystem writes even in error paths
+    assert not log_path.exists()
+    # dry_run should also prevent Moltgate mutations
+    client.mark_archived.assert_not_called()
+    client.mark_processed.assert_not_called()
+
+
+def test_dry_run_transient_error_does_not_write_to_filesystem(tmp_path):
+    """dry_run=True + transient error must not write to deliveries.jsonl."""
+    log_path = tmp_path / "deliveries.jsonl"
+    client = MagicMock()
+    stub = _msg(id_="m_drt", sender_url="https://github.com/acme/demo")
+    client.list_new_messages.return_value = [stub]
+    client.get_message.return_value = stub
+
+    with (
+        patch.object(
+            quick_question,
+            "generate",
+            side_effect=RuntimeError("upstream API down"),
+        ),
+        patch.object(quick_question, "DELIVERIES_LOG_PATH", log_path),
+    ):
+        result = quick_question.handle(client=client, dry_run=True)
+
+    assert result.errors == 1
+    assert not log_path.exists()
+    client.mark_archived.assert_not_called()
+    client.mark_processed.assert_not_called()
