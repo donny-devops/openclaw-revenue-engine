@@ -10,35 +10,54 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
-    name: Lint, type-check, test, build (${{ matrix.node-version }})
+    name: Lint, type-check, test, build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22]
+        node-version: ["22"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Lint
         run: npm run lint --if-present
 
       - name: Type check
-        run: npm run typecheck --if-present
+        run: npm run type-check --if-present
 
-      - name: Test
-        run: npm test --if-present
+      - name: Test with coverage
+        run: npm run test:coverage --if-present
 
       - name: Build
         run: npm run build --if-present
+
+      - name: Upload coverage to Codecov
+        if: always() && hashFiles('coverage/lcov.info') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-openclaw-revenue-engine
+          fail_ci_if_error: false
