@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: openclaw-revenue-engine API
+  version: 1.0.0
+  description: |
+    HTTP surface exposed by the openclaw-revenue-engine service.
+    This document is the contract source of truth used by contract tests in
+    `tests/contract/` and consumed by the `contract-test` GitHub Actions job.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:3000
+    description: Local development
+paths:
+  /:
+    get:
+      summary: Service metadata
+      operationId: getRoot
+      responses:
+        "200":
+          description: Service identity and documentation pointer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootResponse"
+  /health:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is up and responding.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /webhooks/stripe:
+    post:
+      summary: Stripe webhook receiver
+      operationId: postStripeWebhook
+      description: |
+        Accepts Stripe webhook events. Requires a valid `stripe-signature`
+        header; the raw request body is verified against `STRIPE_WEBHOOK_SECRET`.
+      parameters:
+        - in: header
+          name: stripe-signature
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Event accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAck"
+        "400":
+          description: Missing or invalid signature, or malformed payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/github:
+    post:
+      summary: GitHub webhook receiver
+      operationId: postGithubWebhook
+      description: |
+        Accepts GitHub webhook events. Requires a valid `X-Hub-Signature-256`
+        header verified against `GITHUB_WEBHOOK_SECRET`.
+      parameters:
+        - in: header
+          name: X-Hub-Signature-256
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-GitHub-Event
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Event accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAck"
+        "400":
+          description: Missing or invalid signature, or malformed payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    RootResponse:
+      type: object
+      required: [name, version, docs]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        docs:
+          type: string
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        timestamp:
+          type: string
+          format: date-time
+    WebhookAck:
+      type: object
+      required: [received]
+      properties:
+        received:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

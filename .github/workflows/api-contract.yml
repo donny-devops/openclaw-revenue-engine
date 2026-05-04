@@ -1,0 +1,74 @@
+name: API & Contract Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-contract:
+    name: API & Contract (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x]
+
+    env:
+      CI: "true"
+      NODE_ENV: test
+      LOG_LEVEL: silent
+      # Placeholders so modules that read env at import time don't crash.
+      # Real secrets are not required: tests assert behavior on the public
+      # contract surface (status codes + body shapes) and do not exercise
+      # signature verification against live Stripe/GitHub keys.
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+      GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
+      JWT_SECRET: ci_jwt_secret_placeholder
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run type-check --if-present
+
+      - name: API tests (Supertest integration suite)
+        id: api
+        run: npm run test:api
+
+      - name: Contract tests (OpenAPI vs live responses)
+        id: contract
+        if: always() && steps.api.conclusion != 'cancelled'
+        run: npm run test:contract
+
+      - name: Upload OpenAPI spec artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.yaml
+          if-no-files-found: error
+          retention-days: 14
