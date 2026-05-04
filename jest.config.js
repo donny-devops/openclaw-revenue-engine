@@ -42,4 +42,9 @@ module.exports = {
   // Global setup — set minimum env vars so modules that call requireEnv() at
   // module-load time don't throw before tests have a chance to mock them.
   globalSetup: '<rootDir>/tests/helpers/globalSetup.js',
+  // setupFiles runs in each test process BEFORE the test module (and its
+  // imports) are loaded. globalSetup writes to a parent process and does NOT
+  // populate child env, so we need this file to seed env vars consumed at
+  // module-load time by src/webhooks/* and src/index.ts.
+  setupFiles: ['<rootDir>/tests/helpers/setupContractEnv.ts'],
 };

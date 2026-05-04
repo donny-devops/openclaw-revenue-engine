@@ -14,14 +14,10 @@ import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import request from 'supertest';
 
-beforeAll(() => {
-  process.env.STRIPE_SECRET_KEY = 'sk_test_contract_placeholder';
-  process.env.STRIPE_WEBHOOK_SECRET = 'whsec_contract_placeholder';
-  process.env.GITHUB_WEBHOOK_SECRET = 'github_contract_placeholder';
-  process.env.PORT = '0';
-  process.env.LOG_LEVEL = 'silent';
-});
-
+// Env vars required by `src/webhooks/*` at import time are seeded in
+// `tests/helpers/setupContractEnv.ts`, which runs before this file is loaded
+// (registered via Jest `setupFiles`). Doing it via `beforeAll` here would be
+// too late — `import` statements are hoisted above the test body.
 import app from '../../src/index';
 
 type OpenAPIDoc = {
@@ -43,6 +39,11 @@ type OpenAPIDoc = {
 const specPath = path.resolve(__dirname, '../../openapi.yaml');
 const spec = yaml.load(fs.readFileSync(specPath, 'utf8')) as OpenAPIDoc;
 
+// `strict: false` is required for OpenAPI 3.0 schemas: Ajv's strict mode rejects
+// keywords it doesn't recognize from the OpenAPI dialect (e.g. `nullable`,
+// `discriminator`, `example`) which are valid in OAS but not in JSON Schema
+// draft-07. Disabling strict avoids spurious compile errors without weakening
+// runtime validation of the response bodies we care about.
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
 if (spec.components?.schemas) {
@@ -101,19 +102,54 @@ describe('Contract: GET /health', () => {
 
 describe('Contract: POST /webhooks/stripe', () => {
   it('400 (missing signature) matches ErrorResponse schema', async () => {
-    const validate = validatorFor('/webhooks/stripe', 'post', '400');
+    const validate400 = validatorFor('/webhooks/stripe', 'post', '400');
+    const validate429 = validatorFor('/webhooks/stripe', 'post', '429');
     const res = await request(app).post('/webhooks/stripe').send('{}');
     expect([400, 429]).toContain(res.status);
-    if (res.status === 400) {assertMatches(validate, res.body);}
+    assertMatches(res.status === 400 ? validate400 : validate429, res.body);
+  });
+
+  it('429 (rate limit) matches ErrorResponse schema', async () => {
+    const validate = validatorFor('/webhooks/stripe', 'post', '429');
+    // The webhook limiter caps at 30 req/min. Burst past it from the same
+    // (test) client to deterministically observe a 429 and assert its body
+    // shape against the documented schema.
+    let rateLimited: request.Response | undefined;
+    for (let i = 0; i < 60; i++) {
+      const res = await request(app).post('/webhooks/stripe').send('{}');
+      if (res.status === 429) {
+        rateLimited = res;
+        break;
+      }
+    }
+    expect(rateLimited).toBeDefined();
+    expect(rateLimited!.status).toBe(429);
+    assertMatches(validate, rateLimited!.body);
   });
 });
 
 describe('Contract: POST /webhooks/github', () => {
   it('400 (missing signature) matches ErrorResponse schema', async () => {
-    const validate = validatorFor('/webhooks/github', 'post', '400');
+    const validate400 = validatorFor('/webhooks/github', 'post', '400');
+    const validate429 = validatorFor('/webhooks/github', 'post', '429');
     const res = await request(app).post('/webhooks/github').send('{}');
     expect([400, 429]).toContain(res.status);
-    if (res.status === 400) {assertMatches(validate, res.body);}
+    assertMatches(res.status === 400 ? validate400 : validate429, res.body);
+  });
+
+  it('429 (rate limit) matches ErrorResponse schema', async () => {
+    const validate = validatorFor('/webhooks/github', 'post', '429');
+    let rateLimited: request.Response | undefined;
+    for (let i = 0; i < 60; i++) {
+      const res = await request(app).post('/webhooks/github').send('{}');
+      if (res.status === 429) {
+        rateLimited = res;
+        break;
+      }
+    }
+    expect(rateLimited).toBeDefined();
+    expect(rateLimited!.status).toBe(429);
+    assertMatches(validate, rateLimited!.body);
   });
 });
 

@@ -23,6 +23,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RootResponse"
+        "500":
+          description: Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /health:
     get:
       summary: Liveness probe
@@ -34,6 +40,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "500":
+          description: Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /{any}:
+    parameters:
+      - in: path
+        name: any
+        required: true
+        description: Any path that does not match a documented route.
+        schema:
+          type: string
+    get:
+      summary: Catch-all for unmatched routes
+      operationId: getNotFound
+      description: |
+        Any GET (or other method) to a path that is not explicitly documented
+        is handled by a 404 catch-all middleware that returns an
+        `ErrorResponse` body.
+      responses:
+        "404":
+          description: Route not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unhandled server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /webhooks/stripe:
     post:
       summary: Stripe webhook receiver
@@ -68,6 +108,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unhandled server error.
           content:
             application/json:
               schema:
@@ -111,6 +157,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unhandled server error.
           content:
             application/json:
               schema:
