@@ -20,9 +20,6 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          comment-summary-in-pr: always
-          fail-on-severity: high
-          # Comma-separated SPDX identifiers (no spaces) to avoid parser ambiguity.
-          # Includes legacy IDs (GPL-2.0, GPL-3.0, AGPL-3.0) and modern SPDX
-          # variants (-only / -or-later) so both forms are matched.
-          deny-licenses: "GPL-2.0,GPL-2.0-only,GPL-2.0-or-later,GPL-3.0,GPL-3.0-only,GPL-3.0-or-later,AGPL-3.0,AGPL-3.0-only,AGPL-3.0-or-later"
+          # Policy (fail-on-severity, comment-summary-in-pr, deny-licenses)
+          # is defined in .github/dependency-review-config.yml.
+          config-file: .github/dependency-review-config.yml
