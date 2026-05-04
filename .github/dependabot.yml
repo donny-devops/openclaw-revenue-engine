@@ -27,11 +27,20 @@ updates:
       types:
         patterns:
           - "@types/*"
+        exclude-patterns:
+          - "@types/jest"
+          - "@types/supertest"
+        update-types:
+          - "minor"
+          - "patch"
       eslint:
         patterns:
           - "eslint"
           - "eslint-*"
           - "@typescript-eslint/*"
+        update-types:
+          - "minor"
+          - "patch"
       jest:
         patterns:
           - "jest"
@@ -39,6 +48,9 @@ updates:
           - "@types/jest"
           - "supertest"
           - "@types/supertest"
+        update-types:
+          - "minor"
+          - "patch"
       production-minor-patch:
         dependency-type: "production"
         update-types:

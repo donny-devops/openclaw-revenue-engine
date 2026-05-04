@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   dependency-review:
@@ -21,4 +22,7 @@ jobs:
         with:
           comment-summary-in-pr: always
           fail-on-severity: high
-          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          # Comma-separated SPDX identifiers (no spaces) to avoid parser ambiguity.
+          # Includes legacy IDs (GPL-2.0, GPL-3.0, AGPL-3.0) and modern SPDX
+          # variants (-only / -or-later) so both forms are matched.
+          deny-licenses: "GPL-2.0,GPL-2.0-only,GPL-2.0-or-later,GPL-3.0,GPL-3.0-only,GPL-3.0-or-later,AGPL-3.0,AGPL-3.0-only,AGPL-3.0-or-later"
