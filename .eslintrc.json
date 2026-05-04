@@ -25,5 +25,17 @@
     "prefer-const": "error",
     "curly": ["error", "all"]
   },
-  "ignorePatterns": ["dist/", "node_modules/", "jest.config.js", "*.js"]
+  "ignorePatterns": ["dist/", "node_modules/", "jest.config.js", "*.js"],
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-return": "off"
+      }
+    }
+  ]
 }
