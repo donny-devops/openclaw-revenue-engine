@@ -83,13 +83,14 @@ export function mockRequest(
     method: string;
   }> = {}
 ): Partial<Request> {
+  const headers: Record<string, string> = overrides.headers ?? {};
   return {
     body: overrides.body ?? {},
-    headers: overrides.headers ?? {},
+    headers,
     path: overrides.path ?? '/',
     method: overrides.method ?? 'GET',
     get(name: string) {
-      return (this.headers as Record<string, string>)[name.toLowerCase()];
+      return headers[name.toLowerCase()];
     },
   } as unknown as Partial<Request>;
 }

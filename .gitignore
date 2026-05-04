@@ -150,6 +150,9 @@ env/
 .mypy_cache/
 .ruff_cache/
 
+# openclaw-revenue-engine — lane delivery audit log
+deliveries.jsonl
+
 # OS
 .DS_Store
 Thumbs.db

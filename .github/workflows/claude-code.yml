@@ -1,2 +1,145 @@
-- name: Claude Code Action Official
-  uses: anthropics/claude-code-action@v1
+name: Claude Code — MaxClaw Maintenance
+
+# MaxClaw maintains the AI README Generator lane end-to-end:
+#   1. PR-review mode: every PR touching the service gets an automated review
+#      from Claude Code.
+#   2. Weekly self-tune mode: every Monday Claude Code re-runs the generator
+#      against canonical fixture repos, diffs the output, and opens a tuning
+#      PR against services/readme_generator/prompts.py if drift is detected.
+#
+# Both jobs inherit ANTHROPIC_API_KEY from repo secrets (already wired by
+# .github/workflows/poll.yml).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "services/readme_generator/**"
+      - "lanes/quick_question.py"
+      - "main.py"
+      - "config/lanes.yaml"
+  schedule:
+    # Weekly: Mondays 09:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: claude-code-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # Job 1: PR Review — triggered on pull_request touching the service
+  # ─────────────────────────────────────────────────────────────────────
+  review-readme-generator-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are MaxClaw reviewing a PR against the Quick Question |
+            Agent Contact lane of the openclaw-revenue-engine repo.
+
+            Scope of this review:
+              - services/readme_generator/** (the generator package)
+              - lanes/quick_question.py (the Moltgate lane handler)
+              - main.py (the cron entry point)
+              - config/lanes.yaml (the routing map)
+
+            Check specifically for:
+              1. Untrusted-input handling — the handler must ONLY read
+                 `sender_url`, never `sanitized_body`, and must validate the
+                 URL against the strict GitHub regex before any network call.
+              2. Secrets hygiene — no ANTHROPIC_API_KEY, GITHUB_TOKEN, or
+                 MOLTGATE_API_KEY logged or embedded in prompts.
+              3. The 8 required README sections are still covered by the
+                 system prompt in services/readme_generator/prompts.py.
+              4. Tests in tests/unit/test_quick_question_lane.py still cover
+                 happy path, missing sender_url, invalid sender_url,
+                 transient failure, and dry-run.
+
+            Leave a concise review. Only request changes if you find a
+            concrete issue in the categories above.
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Job 2: Weekly Self-Tune — triggered on schedule or workflow_dispatch
+  # ─────────────────────────────────────────────────────────────────────
+  weekly-prompt-self-tune:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v
+
+      - name: Claude Code prompt self-tune
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are MaxClaw in maintenance mode for the AI README Generator
+            lane of openclaw-revenue-engine.
+
+            Run the following self-tune loop:
+
+            1. Re-generate READMEs for these 3 canonical fixture repos using
+               `services.readme_generator.generate(..., publish=False)`:
+                 - anthropics/anthropic-sdk-python
+                 - pallets/flask
+                 - rust-lang/cargo
+
+            2. For each generated README, verify the 8 required sections from
+               the system prompt are present (Project Title, badges,
+               ## Overview, ## Tech Stack, ## Installation, ## Usage,
+               ## Folder Structure, ## Contributing, ## License).
+
+            3. If any section is missing, truncated, or visibly degraded
+               compared to the current prompt's intent, propose a minimal
+               edit to `services/readme_generator/prompts.py` that fixes the
+               regression. Do NOT rewrite the whole prompt.
+
+            4. If you made a change: run `pytest tests/unit/ -v`, ensure it
+               passes, commit the change to a new branch named
+               `claude/readme-prompt-tune-YYYY-MM-DD`, and open a PR against
+               `main` titled "MaxClaw: weekly README prompt self-tune" with a
+               summary of what you observed and why you changed it.
+
+            5. If you made no change: exit quietly with a short summary.
+
+            Never commit API keys or deliveries.jsonl.

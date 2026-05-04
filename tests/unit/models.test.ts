@@ -11,10 +11,6 @@ import {
   InvoiceStatus,
   SubscriptionStatus,
   UsageMetricType,
-  type Tenant,
-  type Invoice,
-  type Subscription,
-  type UsageRecord,
   type EarningsSummary,
 } from '../../src/models';
 import {
@@ -75,13 +71,13 @@ describe('Tenant interface — makeTenant factory', () => {
     const tenant = makeTenant();
 
     expect(tenant).toMatchObject({
-      id: expect.any(String),
-      name: expect.any(String),
-      email: expect.any(String),
+      id: expect.any(String) as unknown,
+      name: expect.any(String) as unknown,
+      email: expect.any(String) as unknown,
       billingPlan: BillingPlan.Pro,
-      stripeCustomerId: expect.any(String),
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
+      stripeCustomerId: expect.any(String) as unknown,
+      createdAt: expect.any(Date) as unknown,
+      updatedAt: expect.any(Date) as unknown,
     });
   });
 
@@ -108,19 +104,19 @@ describe('Invoice interface — makeInvoice factory', () => {
     const invoice = makeInvoice();
 
     expect(invoice).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
-      stripeInvoiceId: expect.any(String),
+      id: expect.any(String) as unknown,
+      tenantId: expect.any(String) as unknown,
+      stripeInvoiceId: expect.any(String) as unknown,
       status: InvoiceStatus.Paid,
-      amountDue: expect.any(Number),
-      amountPaid: expect.any(Number),
-      currency: expect.any(String),
-      periodStart: expect.any(Date),
-      periodEnd: expect.any(Date),
-      lineItems: expect.any(Array),
+      amountDue: expect.any(Number) as unknown,
+      amountPaid: expect.any(Number) as unknown,
+      currency: expect.any(String) as unknown,
+      periodStart: expect.any(Date) as unknown,
+      periodEnd: expect.any(Date) as unknown,
+      lineItems: expect.any(Array) as unknown,
       pdfUrl: null,
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
+      createdAt: expect.any(Date) as unknown,
+      updatedAt: expect.any(Date) as unknown,
     });
   });
 
@@ -142,16 +138,16 @@ describe('Subscription interface — makeSubscription factory', () => {
     const sub = makeSubscription();
 
     expect(sub).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
-      stripeSubscriptionId: expect.any(String),
+      id: expect.any(String) as unknown,
+      tenantId: expect.any(String) as unknown,
+      stripeSubscriptionId: expect.any(String) as unknown,
       plan: BillingPlan.Pro,
       status: SubscriptionStatus.Active,
-      currentPeriodStart: expect.any(Date),
-      currentPeriodEnd: expect.any(Date),
+      currentPeriodStart: expect.any(Date) as unknown,
+      currentPeriodEnd: expect.any(Date) as unknown,
       cancelAtPeriodEnd: false,
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
+      createdAt: expect.any(Date) as unknown,
+      updatedAt: expect.any(Date) as unknown,
     });
   });
 
@@ -173,13 +169,13 @@ describe('UsageRecord interface — makeUsageRecord factory', () => {
     const usage = makeUsageRecord();
 
     expect(usage).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
+      id: expect.any(String) as unknown,
+      tenantId: expect.any(String) as unknown,
       metricType: UsageMetricType.ApiCall,
-      quantity: expect.any(Number),
-      unit: expect.any(String),
-      recordedAt: expect.any(Date),
-      metadata: expect.any(Object),
+      quantity: expect.any(Number) as unknown,
+      unit: expect.any(String) as unknown,
+      recordedAt: expect.any(Date) as unknown,
+      metadata: expect.any(Object) as unknown,
     });
   });
 
