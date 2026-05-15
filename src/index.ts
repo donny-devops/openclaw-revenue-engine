@@ -76,13 +76,18 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { status?: number; statusCode?: number; type?: string }, req: Request, res: Response, _next: NextFunction) => {
   logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
   });
+  const status = err.status ?? err.statusCode;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    res.status(status).json({ error: err.message || 'Bad Request' });
+    return;
+  }
   res.status(500).json({ error: 'Internal Server Error' });
 });
 

@@ -65,12 +65,12 @@ describe('githubWebhookHandler — missing headers', () => {
       body: Buffer.from('{}'),
       headers: { 'x-github-event': 'push' },
     } as unknown as Request;
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req, res as Response);
+    githubWebhookHandler(req, mock.res as Response);
 
-    expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Signature') });
+    expect(mock.statusCode).toBe(400);
+    expect(mock.body).toMatchObject({ error: expect.stringContaining('Signature') });
   });
 
   it('returns 400 when X-GitHub-Event is absent', () => {
@@ -79,12 +79,12 @@ describe('githubWebhookHandler — missing headers', () => {
       body: built.body,
       headers: { 'x-hub-signature-256': built.signature },
     } as unknown as Request;
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req, res as Response);
+    githubWebhookHandler(req, mock.res as Response);
 
-    expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Event') });
+    expect(mock.statusCode).toBe(400);
+    expect(mock.body).toMatchObject({ error: expect.stringContaining('Event') });
   });
 });
 
@@ -98,12 +98,12 @@ describe('githubWebhookHandler — signature verification', () => {
       { ref: 'refs/heads/main' },
       { signature: 'sha256=deadbeef000000000000000000000000000000000000000000000000000000000000' }
     );
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(401);
-    expect(body).toMatchObject({ error: expect.stringContaining('signature') });
+    expect(mock.statusCode).toBe(401);
+    expect(mock.body).toMatchObject({ error: expect.stringContaining('signature') });
   });
 
   it('returns 401 when signature length mismatches (timing-safe guard)', () => {
@@ -112,11 +112,11 @@ describe('githubWebhookHandler — signature verification', () => {
       { ref: 'refs/heads/main' },
       { signature: 'sha256=short' }
     );
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(401);
+    expect(mock.statusCode).toBe(401);
   });
 
   it('accepts a correctly signed payload and returns 200', () => {
@@ -126,12 +126,12 @@ describe('githubWebhookHandler — signature verification', () => {
       pusher: { name: 'donny' },
     };
     const req = makeGitHubReq('push', payload);
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'push' });
+    expect(mock.statusCode).toBe(200);
+    expect(mock.body).toMatchObject({ received: true, event: 'push' });
   });
 });
 
@@ -144,12 +144,12 @@ describe('githubWebhookHandler — event routing', () => {
 
   it('handles ping event and returns 200', () => {
     const req = makeGitHubReq('ping', { zen: 'Keep it logically awesome.' });
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'ping' });
+    expect(mock.statusCode).toBe(200);
+    expect(mock.body).toMatchObject({ received: true, event: 'ping' });
   });
 
   it('handles push event and returns 200', () => {
@@ -159,12 +159,12 @@ describe('githubWebhookHandler — event routing', () => {
       pusher: { name: 'donny' },
     };
     const req = makeGitHubReq('push', payload);
-    const { res, statusCode, body } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'push' });
+    expect(mock.statusCode).toBe(200);
+    expect(mock.body).toMatchObject({ received: true, event: 'push' });
   });
 
   it('handles pull_request event and returns 200', () => {
@@ -174,11 +174,11 @@ describe('githubWebhookHandler — event routing', () => {
       repository: { full_name: 'donny-devops/test-repo' },
     };
     const req = makeGitHubReq('pull_request', payload);
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 
   it('handles release event and returns 200', () => {
@@ -188,11 +188,11 @@ describe('githubWebhookHandler — event routing', () => {
       repository: { full_name: 'donny-devops/test-repo' },
     };
     const req = makeGitHubReq('release', payload);
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 
   it('handles workflow_run event and returns 200', () => {
@@ -201,11 +201,11 @@ describe('githubWebhookHandler — event routing', () => {
       repository: { full_name: 'donny-devops/test-repo' },
     };
     const req = makeGitHubReq('workflow_run', payload);
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 
   it('handles repository_dispatch event and returns 200', () => {
@@ -214,20 +214,20 @@ describe('githubWebhookHandler — event routing', () => {
       client_payload: { version: '1.2.3' },
     };
     const req = makeGitHubReq('repository_dispatch', payload);
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 
   it('handles unknown event gracefully and still returns 200', () => {
     const req = makeGitHubReq('star', { action: 'created' });
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req as Request, res as Response);
+    githubWebhookHandler(req as Request, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 });
 
@@ -245,11 +245,11 @@ describe('githubWebhookHandler — header normalisation', () => {
         'x-github-delivery': 'test-delivery-array',
       },
     } as unknown as Request;
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
 
-    githubWebhookHandler(req, res as Response);
+    githubWebhookHandler(req, mock.res as Response);
 
-    expect(statusCode).toBe(200);
+    expect(mock.statusCode).toBe(200);
   });
 });
 
@@ -274,13 +274,13 @@ describe('githubWebhookHandler — error handling', () => {
         'x-github-delivery': built.delivery,
       },
     } as unknown as Request;
-    const { res, statusCode } = mockResponse();
+    const mock = mockResponse();
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    githubWebhookHandler(req, res as Response);
+    githubWebhookHandler(req, mock.res as Response);
 
     // The implementation catches errors in the switch block and returns 500
-    expect([200, 500]).toContain(statusCode); // graceful: may log-only
+    expect([200, 500]).toContain(mock.statusCode); // graceful: may log-only
     errorSpy.mockRestore();
   });
 });
