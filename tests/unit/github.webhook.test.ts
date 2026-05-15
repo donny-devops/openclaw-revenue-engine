@@ -24,8 +24,9 @@ beforeAll(() => {
 let githubWebhookHandler: (req: Request, res: Response) => void;
 
 beforeAll(async () => {
-  // Use isolateModules so the module picks up our test secret
-  await jest.isolateModules(async () => {
+  // Use isolateModulesAsync so the module picks up our test secret.
+  // isolateModules is sync; awaiting it triggers @typescript-eslint/await-thenable.
+  await jest.isolateModulesAsync(async () => {
     const mod = await import('../../src/webhooks/github.webhook');
     githubWebhookHandler = mod.githubWebhookHandler;
   });

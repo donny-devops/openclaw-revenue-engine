@@ -39,6 +39,9 @@ module.exports = {
   verbose: true,
   // Reasonable timeout for integration / perf tests
   testTimeout: 15000,
+  // src/index.ts calls app.listen() at module load, which keeps Jest's
+  // event loop alive past the last test. Force exit so CI doesn't hang.
+  forceExit: true,
   // Global setup — set minimum env vars so modules that call requireEnv() at
   // module-load time don't throw before tests have a chance to mock them.
   globalSetup: '<rootDir>/tests/helpers/globalSetup.js',
