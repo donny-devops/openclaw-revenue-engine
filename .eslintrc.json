@@ -25,5 +25,19 @@
     "prefer-const": "error",
     "curly": ["error", "all"]
   },
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-misused-promises": "off",
+        "@typescript-eslint/await-thenable": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["dist/", "node_modules/", "jest.config.js", "*.js"]
 }
