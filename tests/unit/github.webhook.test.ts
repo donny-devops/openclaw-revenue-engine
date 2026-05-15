@@ -23,10 +23,14 @@ beforeAll(() => {
 // Lazy import — resolved after beforeAll sets env vars
 let githubWebhookHandler: (req: Request, res: Response) => void;
 
-beforeAll(async () => {
-  // Use isolateModules so the module picks up our test secret
-  await jest.isolateModules(async () => {
-    const mod = await import('../../src/webhooks/github.webhook');
+beforeAll(() => {
+  // Use isolateModules (sync) so the module picks up our test secret.
+  // We disable the var-requires rule here because jest.isolateModules expects
+  // a synchronous callback, and dynamic import() would resolve outside the
+  // isolation scope.
+  jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('../../src/webhooks/github.webhook') as typeof import('../../src/webhooks/github.webhook');
     githubWebhookHandler = mod.githubWebhookHandler;
   });
 });
