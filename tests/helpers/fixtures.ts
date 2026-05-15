@@ -88,8 +88,8 @@ export function mockRequest(
     headers: overrides.headers ?? {},
     path: overrides.path ?? '/',
     method: overrides.method ?? 'GET',
-    get(name: string) {
-      return (this.headers as Record<string, string>)[name.toLowerCase()];
+    get(this: { headers: Record<string, string> }, name: string) {
+      return this.headers[name.toLowerCase()];
     },
   } as unknown as Partial<Request>;
 }
