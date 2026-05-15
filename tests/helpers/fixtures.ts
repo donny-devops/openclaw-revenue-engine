@@ -96,6 +96,11 @@ export function mockRequest(
 
 /**
  * Creates a mock Express Response that captures status + json calls.
+ *
+ * Returned object is mutated in place by the mock res methods. Read
+ * `captured.statusCode` / `captured.body` AFTER invoking the handler.
+ * Do not destructure these fields before the handler runs — destructuring
+ * snapshots the primitive at that moment and won't reflect later mutations.
  */
 export function mockResponse(): MockResponse {
   const captured: MockResponse = {
