@@ -1,4 +1,56 @@
-# Dependabot configuration
+# Dependabot configurationversion: 2
+updates:
+  # -----------------------------
+  # 1. GitHub Actions
+  # -----------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # -----------------------------
+  # 2. Python (pip)
+  # -----------------------------
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "direct"
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+    insecure-external-code-execution: "deny"
+
+  # -----------------------------
+  # 3. Docker
+  # -----------------------------
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker-images:
+        patterns:
+          - "*"
+
+  # -----------------------------
+  # 4. npm (if frontend exists)
+  # -----------------------------
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      node-packages:
+        patterns:
+          - "*"
+
 # Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 
