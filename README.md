@@ -35,14 +35,26 @@ The **OpenClaw Revenue Engine** bridges [OpenClaw](https://github.com/openclaw/o
 ---
  
 ## Features
- 
-- **Moltgate Lane Integration** - Supports all Moltgate tiers: Ping, Standard, Priority, Ultra, and Micro lanes, each with configurable pricing and SLA promises
-- **Autonomous Fetching** - Agent polls for paid messages via the Moltgate API on a configurable interval - no manual inbox checking
-- **Intent-Based Routing** - Incoming requests are triaged by lane tier, message content, and keyword signals to route to the right workflow
-- **Multi-Model Support** - Works with Anthropic Claude (default), OpenAI GPT, Google Gemini, or any model supported by OpenClaw's model-agnostic gateway
-- **Stripe-Backed Payments** - All payments handled through Moltgate's Stripe integration - card data never touches your infrastructure
-- **Service Catalog Ready** - Pre-configured for consulting services like OpenClaw security reviews, hardening audits, and AI workflow roadmaps (Ailephant)
-- **Crypto-Agile Security** - Designed with modular encryption for PQC readiness - a differentiator for FinTech buyers evaluating your services
+
+### Implemented today
+
+- **Stripe Webhook Handler** - Verifies Stripe HMAC signatures and routes subscription/invoice/checkout events to typed handler functions
+- **GitHub Webhook Handler** - Verifies GitHub HMAC-SHA256 signatures and routes push, pull_request, release, workflow_run, and repository_dispatch events
+- **Typed Domain Models** - Pure-TypeScript interfaces and enums for tenants, usage records, invoices, subscriptions, and API shapes — no runtime framework required
+- **Security Middleware** - Helmet, CORS, and tiered rate limiting (100 req/min global, 30 req/min on webhook routes) applied at the Express layer
+- **Structured Logging** - Winston-based JSON logging with configurable level and timestamp
+- **Test Suite** - Unit, integration, and performance tests via Jest + Supertest with enforced coverage thresholds (80% lines/functions/statements, 70% branches)
+- **CI/CD Pipeline** - GitHub Actions workflows for lint, type-check, test, build, CodeQL analysis, dependency review, and secret scanning (TruffleHog)
+- **Docker Support** - Multi-stage Dockerfile producing a minimal, non-root production image
+
+### Planned (in development)
+
+- **Moltgate Lane Integration** - Polling for paid inbox messages across Ping, Standard, Priority, Ultra, and Micro tiers
+- **Autonomous Fetching** - Configurable-interval agent polling via the Moltgate API
+- **Intent-Based Routing** - Triage by lane tier, message content, and keyword signals
+- **Multi-Model Support** - Anthropic Claude, OpenAI GPT, Google Gemini, or any OpenClaw-compatible model
+- **Service Catalog** - Pre-configured templates for consulting, security reviews, and AI roadmap services
+- **Crypto-Agile Security** - Modular encryption layer for post-quantum readiness (ML-KEM, ML-DSA / NIST FIPS 203/204/205)
  
 ---
  
@@ -107,18 +119,26 @@ npm start
 ---
  
 ## Project Structure
- 
+
+The codebase is currently focused on webhook handling, typed domain models, and CI/test scaffolding. The agent/engine/lanes/services layers described in the vision above are in active development.
+
 ```
 openclaw-revenue-engine/
 ├── src/
-│   ├── agent/          # OpenClaw agent configuration and skills
-│   ├── engine/         # Core revenue engine — polling, triage, routing
-│   ├── lanes/          # Lane-specific handlers (Ping, Standard, Priority, Ultra, Micro)
-│   ├── services/       # Service catalog definitions and execution logic
-│   └── utils/          # Helpers — logging, rate limiting, error handling
-├── config/
-│   └── lanes.json      # Lane pricing, SLA, and routing rules
-├── .env.example        # Template environment variables
+│   ├── index.ts            # Express app — middleware, routes, server startup
+│   ├── models/
+│   │   └── index.ts        # Domain models — Tenant, Invoice, Subscription, UsageRecord, enums
+│   └── webhooks/
+│       ├── stripe.webhook.ts   # Stripe signature verification + event routing
+│       └── github.webhook.ts   # GitHub HMAC verification + event routing
+├── tests/
+│   ├── unit/               # Webhook handler and model unit tests (Jest)
+│   ├── integration/        # HTTP-level app tests (Supertest)
+│   ├── performance/        # Load / perf-oriented tests
+│   └── helpers/            # Shared fixtures, mock factories, globalSetup
+├── .github/workflows/      # CI, test, CodeQL, dependency review, secret scanning
+├── Dockerfile              # Multi-stage build → minimal non-root production image
+├── .env.example            # Template environment variables
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -126,8 +146,10 @@ openclaw-revenue-engine/
  
 ---
  
-## Moltgate Lanes
- 
+## Moltgate Lanes _(planned)_
+
+The following lane tiers are the target integration points once polling and routing are implemented:
+
 | Lane | Use Case | Typical Price | SLA |
 |------|----------|--------------|-----|
 | **Micro** | Small tasks, agent handshaking | $1–$3 | Best-effort |
@@ -135,21 +157,21 @@ openclaw-revenue-engine/
 | **Standard** | Consulting asks, support escalations | $10–$25 | 12 hours |
 | **Priority** | High-urgency business requests | $25–$75 | 4 hours |
 | **Ultra** | Premium agent workflows, heavy runtime | $75–$200+ | 1 hour |
- 
-Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response windows, and routing logic to match your service offerings.
+
+Lane pricing, response windows, and routing logic will be configurable once `src/lanes/` and `config/lanes.json` are introduced.
  
 ---
  
-## Service Examples
- 
-The revenue engine ships with templates for common monetized agent services:
- 
+## Service Examples _(planned)_
+
+Once `src/services/` and lane routing are in place, the revenue engine will ship with templates for common monetized agent services:
+
 - **OpenClaw Security Review** ($10) - One focused security question answered by your agent
 - **OpenClaw Hardening Audit** ($30) - Full security posture review for OpenClaw builders
 - **Ailephant AI Roadmap** - Practical AI workflow roadmaps for founders and teams
 - **DevOps Consulting** - Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
 - **Code Review** - Automated code quality and security analysis with detailed feedback
- 
+
 Build your own services by adding handlers to `src/services/` and registering them in the lane routing config.
  
 ---
@@ -170,10 +192,17 @@ For the full security posture document, see [SECURITY.md](SECURITY.md).
 ---
  
 ## Roadmap
- 
-- [x] Core Moltgate API integration
-- [x] Lane-based request routing
-- [x] Multi-model AI support
+
+- [x] Express app with security middleware (Helmet, CORS, rate limiting)
+- [x] Stripe webhook handler with signature verification
+- [x] GitHub webhook handler with HMAC-SHA256 verification
+- [x] Typed domain models (Tenant, Invoice, Subscription, UsageRecord)
+- [x] Jest test suite — unit, integration, performance — with coverage thresholds
+- [x] Multi-stage Docker build with non-root runner
+- [x] GitHub Actions CI — lint, type-check, test, build, CodeQL, dependency review, secret scanning
+- [ ] Core Moltgate API integration (polling paid inbox)
+- [ ] Lane-based request routing (Ping, Standard, Priority, Ultra, Micro)
+- [ ] Multi-model AI support (Claude, GPT, Gemini)
 - [ ] Real-time earnings dashboard
 - [ ] Client reputation scoring
 - [ ] Automated follow-up workflows
