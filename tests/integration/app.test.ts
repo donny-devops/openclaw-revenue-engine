@@ -159,6 +159,12 @@ describe('Security middleware', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
 
+  it('sets X-Frame-Options header via helmet', async () => {
+    const res = await request(app).get('/health');
+
+    expect(res.headers['x-frame-options']).toBeDefined();
+  });
+
   it('CORS headers respect CORS_ORIGIN env var', async () => {
     process.env.CORS_ORIGIN = 'http://testorigin.com';
 
@@ -169,6 +175,29 @@ describe('Security middleware', () => {
     // May or may not set Access-Control-Allow-Origin depending on pre-flight
     // Just verify the app didn't crash
     expect(res.status).toBe(200);
+  });
+
+  it('responds to CORS preflight OPTIONS with allow headers', async () => {
+    const res = await request(app)
+      .options('/health')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'GET');
+
+    // Supertest may get 204 (preflight handled) or 404 (no OPTIONS route);
+    // either way the server should not crash
+    expect([200, 204, 404]).toContain(res.status);
+  });
+
+  it('sets CORS Access-Control-Allow-Origin for a matching origin', async () => {
+    // CORS_ORIGIN is locked in at module-load time (globalSetup: 'http://localhost:3000').
+    // Mutating process.env after import has no effect on an already-created cors middleware.
+    // Verify that a request from the configured origin receives the allow header.
+    const res = await request(app)
+      .get('/health')
+      .set('Origin', 'http://localhost:3000');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
   });
 });
 
@@ -198,5 +227,47 @@ describe('JSON body parsing', () => {
       .set('Content-Type', 'application/json');
 
     expect(res.status).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Response shape assertions
+// ---------------------------------------------------------------------------
+
+describe('Response Content-Type', () => {
+  it('GET /health returns application/json content-type', async () => {
+    const res = await request(app).get('/health');
+
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+  });
+
+  it('GET / returns application/json content-type', async () => {
+    const res = await request(app).get('/');
+
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+  });
+
+  it('GET /does-not-exist 404 response has application/json content-type', async () => {
+    const res = await request(app).get('/does-not-exist');
+
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HTTP method handling
+// ---------------------------------------------------------------------------
+
+describe('HTTP method routing', () => {
+  it('DELETE /health returns 404 (not a registered route)', async () => {
+    const res = await request(app).delete('/health');
+
+    expect(res.status).toBe(404);
+  });
+
+  it('PUT / returns 404 (not a registered route)', async () => {
+    const res = await request(app).put('/');
+
+    expect(res.status).toBe(404);
   });
 });

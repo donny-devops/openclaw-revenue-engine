@@ -127,6 +127,21 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     logSpy.mockRestore();
   });
 
+  it('invoice.payment_failed with missing id falls back to "unknown"', () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    mockConstructEvent.mockReturnValueOnce({
+      id: 'evt_fallback_5',
+      type: 'invoice.payment_failed',
+      // id is absent — hits the `invoice.id ?? 'unknown'` false branch on line 137
+      data: { object: { customer: 'cus_x', next_payment_attempt: 9999 } },
+    });
+    const captured = mockResponse();
+    stripeWebhookHandler(req(), captured.res as Response);
+    expect(captured.statusCode).toBe(200);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('unknown'));
+    logSpy.mockRestore();
+  });
+
   it('returns 400 with "Unknown error" when constructEvent throws a non-Error', () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockConstructEvent.mockImplementationOnce(() => {
@@ -301,5 +316,30 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
     expect(captured.statusCode).toBe(500);
     parseSpy.mockRestore();
     errSpy.mockRestore();
+  });
+
+  it('handles a string (non-Buffer) body with valid HMAC — covers instanceof Buffer false branch', () => {
+    // Node.js crypto.createHmac().update() accepts strings as well as Buffers.
+    // When req.body is a string (e.g., forwarded by an upstream middleware that
+    // already decoded the raw bytes), verifyGitHubSignature's hmac.update() still
+    // produces a valid digest, so signature verification passes and the handler
+    // reaches the `req.body instanceof Buffer` ternary (line 73). Because a string
+    // is NOT a Buffer, the false branch is taken.
+    const payloadStr = JSON.stringify({ zen: 'Keep it logically awesome.' });
+    const sig = `sha256=${crypto.createHmac('sha256', GITHUB_TEST_WEBHOOK_SECRET).update(payloadStr).digest('hex')}`;
+    const req = {
+      body: payloadStr, // string — NOT a Buffer; hits the false branch of instanceof Buffer
+      headers: {
+        'x-hub-signature-256': sig,
+        'x-github-event': 'ping',
+        'x-github-delivery': 'str-body-delivery',
+      },
+    } as unknown as Request;
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const captured = mockResponse();
+    githubWebhookHandler(req, captured.res as Response);
+    expect(captured.statusCode).toBe(200);
+    expect(captured.body).toMatchObject({ received: true, event: 'ping' });
+    logSpy.mockRestore();
   });
 });

@@ -203,3 +203,18 @@ export function makeUsageRecord(overrides: Partial<UsageRecord> = {}): UsageReco
     ...overrides,
   };
 }
+
+import type { InvoiceLineItem } from '../../src/models';
+
+export function makeInvoiceLineItem(overrides: Partial<InvoiceLineItem> = {}): InvoiceLineItem {
+  return {
+    id: 'line_01',
+    invoiceId: 'inv_01',
+    description: 'API calls - January',
+    quantity: 1000,
+    unitAmount: 5,
+    totalAmount: 5000,
+    metricType: UsageMetricType.ApiCall,
+    ...overrides,
+  };
+}
