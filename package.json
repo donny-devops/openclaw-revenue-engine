@@ -30,7 +30,7 @@
     "rate-limiter-flexible": "^5.0.3",
     "stripe": "^16.0.0",
     "winston": "^3.13.0",
-    "zod": "^3.23.8"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
