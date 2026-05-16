@@ -39,6 +39,11 @@ module.exports = {
   verbose: true,
   // Reasonable timeout for integration / perf tests
   testTimeout: 15000,
+  // Force-exit Jest after all tests complete. The Express app registers timers
+  // (rate-limit windows, etc.) that keep the event loop alive after `await
+  // request(app)...` resolves. Without this, `npm test` hangs in CI even when
+  // every test passes.
+  forceExit: true,
   // Global setup — set minimum env vars so modules that call requireEnv() at
   // module-load time don't throw before tests have a chance to mock them.
   globalSetup: '<rootDir>/tests/helpers/globalSetup.js',

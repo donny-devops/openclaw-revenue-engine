@@ -41,14 +41,14 @@ const webhookLimiter = rateLimit({
 app.post(
   '/webhooks/stripe',
   webhookLimiter,
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: 'application/json', limit: '1mb' }),
   stripeWebhookHandler
 );
 
 app.post(
   '/webhooks/github',
   webhookLimiter,
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: 'application/json', limit: '1mb' }),
   githubWebhookHandler
 );
 
@@ -77,12 +77,27 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const status =
+    (err as { status?: number; statusCode?: number }).status ??
+    (err as { status?: number; statusCode?: number }).statusCode ??
+    500;
+
   logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
+    status,
   });
+
+  if (status === 413) {
+    res.status(413).json({ error: 'Payload Too Large' });
+    return;
+  }
+  if (status >= 400 && status < 500) {
+    res.status(status).json({ error: err.message || 'Bad Request' });
+    return;
+  }
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
