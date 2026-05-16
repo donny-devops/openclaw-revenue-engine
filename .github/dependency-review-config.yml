@@ -18,3 +18,10 @@ deny-licenses:
   - AGPL-3.0
   - AGPL-3.0-only
   - AGPL-3.0-or-later
+
+# CI-only tooling exempt from the copyleft ban above. These are GitHub
+# Actions referenced from workflows, not dependencies bundled into the
+# shipped product, so their AGPL licensing does not propagate to the
+# runtime artifact.
+allow-dependencies-licenses:
+  - pkg:githubactions/trufflesecurity/trufflehog

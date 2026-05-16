@@ -1,2 +1,26 @@
-- name: TruffleHog OSS
-  uses: trufflesecurity/trufflehog@v3.94.2
+name: TruffleHog Secret Scan
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: TruffleHog OSS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@v3.94.2
+        with:
+          extra_args: --results=verified,unknown
