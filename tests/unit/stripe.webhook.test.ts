@@ -66,12 +66,13 @@ describe('stripeWebhookHandler — missing stripe-signature header', () => {
       body: Buffer.from('{}'),
       headers: {},
     } as unknown as Request;
-    const { res, statusCode, body } = mockResponse();
+    const captured = mockResponse();
+    const { res } = captured;
 
     stripeWebhookHandler(req, res as Response);
 
-    expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
+    expect(captured.statusCode).toBe(400);
+    expect(captured.body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
   });
 });
 
@@ -89,13 +90,14 @@ describe('stripeWebhookHandler — invalid signature', () => {
 
   it('returns 400 when Stripe signature verification fails', () => {
     const req = makeStripeReq('invoice.payment_succeeded', {}, 'bad_signature');
-    const { res, statusCode, body } = mockResponse();
+    const captured = mockResponse();
+    const { res } = captured;
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
     stripeWebhookHandler(req, res as Response);
 
-    expect(statusCode).toBe(400);
-    expect(body).toMatchObject({
+    expect(captured.statusCode).toBe(400);
+    expect(captured.body).toMatchObject({
       error: expect.stringContaining('signature verification failed'),
     });
     errorSpy.mockRestore();
@@ -160,12 +162,13 @@ describe('stripeWebhookHandler — supported event routing', () => {
       });
 
       const req = makeStripeReq(eventType, dataObject);
-      const { res, statusCode, body } = mockResponse();
+      const captured = mockResponse();
+    const { res } = captured;
 
       stripeWebhookHandler(req, res as Response);
 
-      expect(statusCode).toBe(200);
-      expect(body).toMatchObject({ received: true, eventType });
+      expect(captured.statusCode).toBe(200);
+      expect(captured.body).toMatchObject({ received: true, eventType });
     }
   );
 });
@@ -184,12 +187,13 @@ describe('stripeWebhookHandler — unhandled event type', () => {
     });
 
     const req = makeStripeReq('payment_method.attached', {});
-    const { res, statusCode, body } = mockResponse();
+    const captured = mockResponse();
+    const { res } = captured;
 
     stripeWebhookHandler(req, res as Response);
 
-    expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true });
+    expect(captured.statusCode).toBe(200);
+    expect(captured.body).toMatchObject({ received: true });
     consoleSpy.mockRestore();
   });
 });
@@ -211,12 +215,13 @@ describe('stripeWebhookHandler — internal handler error', () => {
     });
 
     const req = makeStripeReq('customer.subscription.created', {});
-    const { res, statusCode } = mockResponse();
+    const captured = mockResponse();
+    const { res } = captured;
 
     stripeWebhookHandler(req, res as Response);
 
     // Should be caught by the outer try/catch and returned as 500
-    expect([200, 500]).toContain(statusCode);
+    expect([200, 500]).toContain(captured.statusCode);
     errorSpy.mockRestore();
   });
 });
@@ -237,7 +242,8 @@ describe('stripeWebhookHandler — constructEvent arguments', () => {
     });
 
     const req = makeStripeReq(eventType, dataObject);
-    const { res } = mockResponse();
+    const captured = mockResponse();
+    const { res } = captured;
 
     stripeWebhookHandler(req, res as Response);
 
