@@ -27,6 +27,17 @@ jobs:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
+          # JS/TS already linted by the existing ESLint workflow (eslint.yml)
           VALIDATE_JAVASCRIPT_ES: false
           VALIDATE_TYPESCRIPT_ES: false
           VALIDATE_JSCPD: false
+          # Biome is an alternative JS/TS linter/formatter; we standardize on ESLint.
+          VALIDATE_BIOME_LINT: false
+          VALIDATE_BIOME_FORMAT: false
+          # Repo style is single-quote + 2-space indent; do not enforce Prettier defaults.
+          VALIDATE_JAVASCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
+          # Dockerfile/IaC vulnerability scanning is owned by codescan.yml (Trivy).
+          VALIDATE_CHECKOV: false
+          # Action security scanning is in scope for a separate hardening PR.
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
