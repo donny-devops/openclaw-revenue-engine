@@ -171,6 +171,29 @@ describe('stripeWebhookHandler — supported event routing', () => {
       expect(captured.body).toMatchObject({ received: true, eventType });
     }
   );
+
+  it('falls back to "unknown" invoice id for invoice.payment_failed when id is missing', () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const eventType = 'invoice.payment_failed';
+    const dataObject = { customer: 'cus_test_01', next_payment_attempt: 1700000000 };
+
+    mockConstructEvent.mockReturnValueOnce({
+      id: 'evt_payment_failed_no_id',
+      type: eventType,
+      data: { object: dataObject },
+    });
+
+    const req = makeStripeReq(eventType, dataObject);
+    const captured = mockResponse();
+    const { res } = captured;
+
+    stripeWebhookHandler(req, res as Response);
+
+    expect(captured.statusCode).toBe(200);
+    expect(captured.body).toMatchObject({ received: true, eventType });
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Payment failed for invoice: unknown'));
+    logSpy.mockRestore();
+  });
 });
 
 // ---------------------------------------------------------------------------

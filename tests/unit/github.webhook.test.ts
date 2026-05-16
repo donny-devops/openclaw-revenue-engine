@@ -9,6 +9,7 @@
  */
 
 import type { Request, Response } from 'express';
+import crypto from 'crypto';
 import {
   buildGitHubPayload,
   GITHUB_TEST_WEBHOOK_SECRET,
@@ -265,6 +266,30 @@ describe('githubWebhookHandler — header normalisation', () => {
     githubWebhookHandler(req, res as Response);
 
     expect(captured.statusCode).toBe(200);
+  });
+
+  it('accepts a non-Buffer string body when signature is valid', () => {
+    const body = JSON.stringify({ zen: 'still alive' });
+    const signature = `sha256=${crypto.createHmac('sha256', GITHUB_TEST_WEBHOOK_SECRET).update(body).digest('hex')}`;
+    const req = {
+      body,
+      headers: {
+        'x-hub-signature-256': signature,
+        'x-github-event': 'ping',
+        'x-github-delivery': 'test-delivery-string-body',
+      },
+    } as unknown as Request;
+    const captured = mockResponse();
+    const { res } = captured;
+
+    githubWebhookHandler(req, res as Response);
+
+    expect(captured.statusCode).toBe(200);
+    expect(captured.body).toMatchObject({
+      received: true,
+      event: 'ping',
+      delivery: 'test-delivery-string-body',
+    });
   });
 });
 
