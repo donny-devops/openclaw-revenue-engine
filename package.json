@@ -2,7 +2,7 @@
   "name": "openclaw-revenue-engine",
   "version": "1.0.0",
   "description": "Self-hosted revenue engine for OpenClaw agents",
-  "main": "dist/index.js",
+  "main": "dist/server.js",
   "scripts": {
     "lint": "eslint . --ext .ts",
     "type-check": "tsc --noEmit",
@@ -14,8 +14,8 @@
     "build": "tsc",
     "prebuild": "npm run clean",
     "clean": "rm -rf dist",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
