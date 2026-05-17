@@ -20,7 +20,6 @@ const logger = createLogger({
 });
 
 const app: Application = express();
-const PORT = process.env.PORT ?? 3000;
 
 const globalLimiter = rateLimit({
   windowMs: 60_000,
@@ -101,9 +100,5 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
-  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
-});
-
-export { logger };
+export { app, logger };
 export default app;
