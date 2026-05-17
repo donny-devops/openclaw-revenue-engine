@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "Self-hosted revenue engine for OpenClaw agents",
   "main": "dist/index.js",
- "scripts": {
-  "lint": "echo \"No linting configured yet\""
-}
+  "scripts": {
     "lint": "eslint . --ext .ts",
     "type-check": "tsc --noEmit",
     "test": "jest",
