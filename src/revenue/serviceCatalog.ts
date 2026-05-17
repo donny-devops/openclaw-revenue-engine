@@ -33,16 +33,24 @@ export function getService(slug: string): ServiceConfig {
   return service;
 }
 
+function keywordScore(service: ServiceConfig, haystack: string): number {
+  return service.keywords.reduce((score, keyword) => {
+    const normalizedKeyword = keyword.toLowerCase();
+    return haystack.includes(normalizedKeyword) ? score + normalizedKeyword.length : score;
+  }, 0);
+}
+
 function inferService(input: PaidRequestInput): ServiceConfig {
   if (input.service) return getService(input.service);
 
   const openclaw = loadOpenClawConfig();
   const haystack = `${input.title ?? ''}\n${input.body}`.toLowerCase();
-  const match = enabledServices().find((service) =>
-    service.keywords.some((keyword) => haystack.includes(keyword.toLowerCase())),
-  );
+  const ranked = enabledServices()
+    .map((service) => ({ service, score: keywordScore(service, haystack) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
 
-  return match ?? getService(openclaw.engine.default_service);
+  return ranked[0]?.service ?? getService(openclaw.engine.default_service);
 }
 
 function inferLane(input: PaidRequestInput, service: ServiceConfig): LaneConfig {
