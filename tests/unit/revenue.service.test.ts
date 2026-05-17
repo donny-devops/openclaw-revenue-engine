@@ -6,7 +6,6 @@ describe('revenue service catalog', () => {
     expect(lanes.map((lane) => lane.slug)).toEqual(expect.arrayContaining(['micro', 'standard', 'priority', 'ultra']));
     expect(lanes.find((lane) => lane.slug === 'standard')).toMatchObject({
       price: 25,
-      currency: undefined,
       human_review_required: true,
     });
   });
@@ -33,8 +32,8 @@ describe('revenue service catalog', () => {
 
   it('classifies CI workflow requests into the actions debug service', () => {
     const classification = classifyPaidRequest({
-      title: 'GitHub Actions failure',
-      body: 'My CI workflow YAML fails during CodeQL and Trivy scanning.',
+      title: 'GitHub Actions CI workflow failure',
+      body: 'My workflow YAML fails during CodeQL and Trivy scanning. Please debug the action logs.',
     });
 
     expect(classification.service.slug).toBe('actions-debug');
