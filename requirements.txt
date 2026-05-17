@@ -1,0 +1,1 @@
+# Poll runner currently uses Python standard library only.
