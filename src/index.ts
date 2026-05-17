@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { createLogger, format, transports } from 'winston';
 
 import { loadAppConfig } from './config/app';
+import { agentsRouter } from './routes/agents';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 
@@ -73,6 +74,7 @@ function createApp(config = appConfig): Application {
     })
   );
   app.use(express.json({ limit: config.jsonBodyLimit }));
+  app.use('/agents', agentsRouter);
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({
@@ -90,6 +92,7 @@ function createApp(config = appConfig): Application {
       dependencies: {
         stripeWebhook: 'lazy-configured',
         githubWebhook: 'lazy-configured',
+        agents: 'enabled',
       },
     });
   });
@@ -100,6 +103,7 @@ function createApp(config = appConfig): Application {
       version: config.version,
       docs: '/health',
       readiness: '/ready',
+      agents: '/agents',
     });
   });
 
