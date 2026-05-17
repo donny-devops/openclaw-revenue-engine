@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "runtimes": {
+    "node_api": {
+      "enabled": true,
+      "entrypoint": "src/index.ts",
+      "containerized": true
+    },
+    "python_agents": {
+      "enabled": true,
+      "entrypoint": "python/agents/orchestrator.py",
+      "containerized": true
+    },
+    "streamlit_console": {
+      "enabled": true,
+      "entrypoint": "python/streamlit_app.py",
+      "containerized": true
+    },
+    "langchain4j_service": {
+      "enabled": false,
+      "entrypoint": "java/langchain4j-service",
+      "note": "Scaffolded for future JVM-based RAG and agent integrations."
+    }
+  },
+  "providers": {
+    "huggingface": {
+      "enabled": true,
+      "required_secrets": ["HF_TOKEN"],
+      "default_embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+    },
+    "aws": {
+      "enabled": true,
+      "required_secrets": ["AWS_ROLE_TO_ASSUME", "AWS_REGION"],
+      "targets": ["ecs", "eks", "ecr", "rds-postgres"]
+    },
+    "azure": {
+      "enabled": true,
+      "required_secrets": ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"],
+      "targets": ["container-apps", "aks", "azure-database-postgresql"]
+    },
+    "gcp": {
+      "enabled": true,
+      "required_secrets": ["GCP_WORKLOAD_IDENTITY_PROVIDER", "GCP_SERVICE_ACCOUNT"],
+      "targets": ["cloud-run", "gke", "artifact-registry", "cloud-sql-postgres"]
+    }
+  },
+  "deployment": {
+    "docker": true,
+    "kubernetes": true,
+    "terraform": true,
+    "human_approval_required": true
+  }
+}
