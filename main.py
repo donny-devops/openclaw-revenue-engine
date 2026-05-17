@@ -69,7 +69,7 @@ def normalize_base_url(value: str | None) -> str:
 
 
 def configure_logging() -> None:
-    requested_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    requested_level = (os.getenv("LOG_LEVEL") or "INFO").upper()
     level = VALID_LOG_LEVELS.get(requested_level, logging.INFO)
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -111,8 +111,7 @@ def read_json(url: str, api_key: str) -> Any:
         method="GET",
     )
 
-    # skipcq: BAN-B310 -- URL is built internally and validated as HTTPS-only above.
-    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # nosec B310  # skipcq: BAN-B310
         body = response.read().decode("utf-8")
         return json.loads(body) if body else {}
 
