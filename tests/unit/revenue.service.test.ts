@@ -43,6 +43,16 @@ describe('revenue service catalog', () => {
     expect(classification.deliverable_template).toContain('GitHub Actions Debug Sprint');
   });
 
+  it('does not route ordinary words containing ai or ci to automation/debug services', () => {
+    const classification = classifyPaidRequest({
+      title: 'Pricing decision details',
+      body: 'Please maintain a clean repository summary and review the portfolio README.',
+    });
+
+    expect(classification.service.slug).toBe('repo-triage');
+    expect(classification.lane.slug).toBe('standard');
+  });
+
   it('honors explicit lane and service overrides', () => {
     const classification = classifyPaidRequest({
       lane: 'ultra',
@@ -53,6 +63,14 @@ describe('revenue service catalog', () => {
     expect(classification.service.slug).toBe('openclaw-setup');
     expect(classification.lane.slug).toBe('ultra');
     expect(classification.estimated_revenue).toBe(199);
+  });
+
+  it('enforces selected lane input limits', () => {
+    expect(() => classifyPaidRequest({
+      lane: 'micro',
+      service: 'repo-triage',
+      body: 'x'.repeat(1300),
+    })).toThrow('Paid request exceeds micro lane max_input_chars limit');
   });
 
   it('rejects empty paid request bodies', () => {
