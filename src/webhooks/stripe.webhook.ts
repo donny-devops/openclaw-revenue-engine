@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
-// ─── Fail fast at module load if required env vars are missing ───
 function requireEnv(key: string): string {
   const val = process.env[key];
   if (!val) {
@@ -10,40 +9,25 @@ function requireEnv(key: string): string {
   return val;
 }
 
-const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
-  apiVersion: '2024-06-20',
-});
+let stripeClient: Stripe | null = null;
 
-const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET');
+function getStripeClient(): Stripe {
+  if (!stripeClient) {
+    stripeClient = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
+      apiVersion: '2024-06-20',
+    });
+  }
+  return stripeClient;
+}
 
 /**
  * Stripe Webhook Handler
  *
- * Verifies the Stripe signature, then routes each event type
- * to its appropriate handler. Uses raw body for HMAC verification.
+ * Verifies the Stripe signature, then routes each event type to its appropriate
+ * handler. Uses raw body for HMAC verification.
  *
- * IMPORTANT: This handler must be registered with express.raw({ type: 'application/json' })
- * in index.ts BEFORE the global express.json() middleware.
- *
- * Supported events:
- *   - customer.subscription.created
- *   - customer.subscription.updated
- *   - customer.subscription.deleted
- *   - invoice.payment_succeeded
- *   - invoice.payment_failed
- *   - checkout.session.completed
- *
- * Fix for @typescript-eslint/require-await (line 36):
- * stripe.webhooks.constructEvent() is synchronous — it returns Stripe.Event
- * directly, not a Promise. No await expressions exist in this function.
- * Removed the async keyword; the return type changes from Promise<void> to void.
- *
- * Fix for @typescript-eslint/no-unnecessary-type-assertion (lines 65–80):
- * Stripe's SDK now ships precise generic types for event.data.object keyed by
- * event.type via the Stripe.DiscriminatedEvent union. In the switch branches,
- * TypeScript already narrows event to the correct discriminated type, so
- * casting event.data.object with `as Stripe.Subscription` etc. is redundant.
- * Replaced each cast with a typed const that reads from the pre-narrowed event.
+ * IMPORTANT: Register this handler with express.raw({ type: 'application/json' })
+ * before global express.json() middleware.
  */
 export function stripeWebhookHandler(
   req: Request,
@@ -57,22 +41,25 @@ export function stripeWebhookHandler(
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripeClient().webhooks.constructEvent(
       req.body as Buffer,
       sig,
-      webhookSecret
+      requireEnv('STRIPE_WEBHOOK_SECRET')
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Stripe webhook signature verification failed: ${message}`);
-    res.status(400).json({ error: `Webhook signature verification failed: ${message}` });
+    const isConfigError = message.startsWith('Missing required environment variable:');
+
+    console.error(`Stripe webhook setup/signature failure: ${message}`);
+    res.status(isConfigError ? 500 : 400).json({
+      error: isConfigError ? 'Stripe webhook is not configured' : `Webhook signature verification failed: ${message}`,
+    });
     return;
   }
 
   console.log(`Stripe webhook received: ${event.type} [${event.id}]`);
 
   try {
-    // Using Stripe.DiscriminatedEvent narrowing — no redundant type assertions needed.
     switch (event.type) {
       case 'customer.subscription.created':
         handleSubscriptionCreated(event.data.object);
@@ -103,46 +90,36 @@ export function stripeWebhookHandler(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Event Handlers
-// ---------------------------------------------------------------------------
-
 function handleSubscriptionCreated(subscription: Stripe.Subscription): void {
   console.log(`New subscription created: ${subscription.id}`);
   console.log(`Customer: ${String(subscription.customer)}`);
   console.log(`Status: ${subscription.status}`);
-  // TODO: Provision access, update DB, send welcome email
 }
 
 function handleSubscriptionUpdated(subscription: Stripe.Subscription): void {
   console.log(`Subscription updated: ${subscription.id}`);
   console.log(`New status: ${subscription.status}`);
-  // TODO: Update access level, sync plan changes to DB
 }
 
 function handleSubscriptionDeleted(subscription: Stripe.Subscription): void {
   console.log(`Subscription cancelled: ${subscription.id}`);
   console.log(`Customer: ${String(subscription.customer)}`);
-  // TODO: Revoke access, update DB, send cancellation confirmation
 }
 
 function handlePaymentSucceeded(invoice: Stripe.Invoice): void {
   console.log(`Payment succeeded for invoice: ${invoice.id ?? 'unknown'}`);
   console.log(`Amount: ${invoice.amount_paid} ${invoice.currency}`);
   console.log(`Customer: ${String(invoice.customer)}`);
-  // TODO: Record payment in DB, generate internal invoice record
 }
 
 function handlePaymentFailed(invoice: Stripe.Invoice): void {
   console.log(`Payment failed for invoice: ${invoice.id ?? 'unknown'}`);
   console.log(`Customer: ${String(invoice.customer)}`);
   console.log(`Next retry: ${invoice.next_payment_attempt ?? 'none'}`);
-  // TODO: Send payment failure alert, flag account for retry
 }
 
 function handleCheckoutCompleted(session: Stripe.Checkout.Session): void {
   console.log(`Checkout session completed: ${session.id}`);
   console.log(`Customer: ${String(session.customer)}`);
   console.log(`Payment status: ${session.payment_status}`);
-  // TODO: Activate subscription, send onboarding email
 }
