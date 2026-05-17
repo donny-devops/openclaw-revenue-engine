@@ -1,0 +1,97 @@
+name: Publish AI Runbook Gist
+
+on:
+  workflow_dispatch:
+    inputs:
+      incident_type:
+        description: Revenue incident type to publish
+        required: true
+        default: webhook-failure
+        type: choice
+        options:
+          - webhook-failure
+          - billing-anomaly
+          - usage-spike
+          - deployment-regression
+      gist_description:
+        description: Gist description
+        required: false
+        default: OpenClaw Revenue Engine AI Runbook
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-gist:
+    name: Publish AI runbook to Gist
+    runs-on: ubuntu-latest
+    if: ${{ secrets.GIST_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build runbook payload
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cat > artifacts/ai-runbook.md <<'RUNBOOK'
+          # OpenClaw Revenue Engine AI Runbook
+
+          ## Incident Type
+          ${{ inputs.incident_type }}
+
+          ## Purpose
+          Operator-facing runbook generated from repository-controlled AI agent manifests, model routing policy, and MCP server inventory.
+
+          ## Agent Chain
+          1. Revenue Operations Agent
+          2. Compliance Review Agent
+          3. Human operator approval for customer, refund, payment, or production-impacting action
+
+          ## Evidence Checklist
+          - request_id
+          - provider_event_id
+          - deployment_sha
+          - error_summary
+          - redacted logs
+          - recommended next action
+
+          ## Guardrails
+          - No automatic refunds.
+          - No customer record mutation without approval.
+          - No raw secrets, signatures, or payment details.
+          - Use reversible remediation first.
+          RUNBOOK
+
+          jq -n \
+            --arg description "${{ inputs.gist_description }}" \
+            --arg content "$(cat artifacts/ai-runbook.md)" \
+            '{description: $description, public: false, files: {"openclaw-ai-runbook.md": {content: $content}}}' \
+            > artifacts/gist-payload.json
+
+      - name: Create private gist
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${GIST_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/gists \
+            -d @artifacts/gist-payload.json
+
+      - name: Upload local payload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-runbook-gist-payload
+          path: artifacts/
+
+  missing-token:
+    name: Explain missing token
+    runs-on: ubuntu-latest
+    if: ${{ secrets.GIST_TOKEN == '' }}
+    steps:
+      - name: Explain skipped publish
+        run: |
+          echo "GIST_TOKEN is not configured. Add a fine-scoped token with gist permission to publish private gists."
