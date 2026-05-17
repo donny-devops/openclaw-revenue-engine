@@ -29,13 +29,19 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 4  # Must finish before next cron tick
+    timeout-minutes: 5  # Concurrency guard prevents overlap; allow full poll window
 
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            api.anthropic.com:443
+            moltgate.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+            github.com:443
 
       - name: Check out repository
         uses: actions/checkout@v4
