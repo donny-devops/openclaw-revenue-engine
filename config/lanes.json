@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "currency": "USD",
+  "lanes": [
+    {
+      "slug": "micro",
+      "name": "Micro",
+      "price": 5,
+      "sla_hours": 48,
+      "capabilities": ["quick_question", "repo_pointer", "low_complexity_answer"],
+      "deliverables": ["short_answer", "next_step_list"],
+      "max_input_chars": 1200,
+      "human_review_required": false,
+      "enabled": true
+    },
+    {
+      "slug": "standard",
+      "name": "Standard",
+      "price": 25,
+      "sla_hours": 12,
+      "capabilities": ["repo_triage", "workflow_debug", "implementation_plan"],
+      "deliverables": ["triage_report", "fix_plan", "copy_paste_code"],
+      "max_input_chars": 6000,
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "priority",
+      "name": "Priority",
+      "price": 75,
+      "sla_hours": 4,
+      "capabilities": ["ci_debug", "security_triage", "branch_pr_plan", "urgent_fix"],
+      "deliverables": ["root_cause_report", "solution_patch", "pr_summary"],
+      "max_input_chars": 12000,
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "ultra",
+      "name": "Ultra",
+      "price": 199,
+      "sla_hours": 1,
+      "capabilities": ["devsecops_audit", "multi_file_patch", "architecture_review", "repo_hardening"],
+      "deliverables": ["executive_summary", "technical_audit", "implementation_bundle", "followup_checklist"],
+      "max_input_chars": 25000,
+      "human_review_required": true,
+      "enabled": true
+    }
+  ]
+}
