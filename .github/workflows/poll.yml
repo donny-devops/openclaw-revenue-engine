@@ -10,6 +10,14 @@ on:
         description: "Lane slug to poll (blank = all)"
         required: false
         default: ""
+      dry_run:
+        description: "Validate poll runtime without calling Moltgate"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   contents: read
@@ -51,19 +59,22 @@ jobs:
           MOLTGATE_PROFILE_HANDLE: ${{ secrets.MOLTGATE_PROFILE_HANDLE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LOG_LEVEL: INFO
-          INPUT_LANE: ${{ github.event.inputs.lane }}
+          INPUT_LANE: ${{ github.event_name == 'workflow_dispatch' && inputs.lane || '' }}
+          INPUT_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
         run: |
           set -euo pipefail
 
-          # Default base URL if secret is unset/empty
           BASE_URL="${MOLTGATE_BASE_URL:-https://moltgate.com}"
           export MOLTGATE_BASE_URL="$BASE_URL"
 
-          # Normalize lane (works for schedule + workflow_dispatch)
-          LANE="${INPUT_LANE:-}"
-          LANE_FLAG=""
-          if [ -n "$LANE" ]; then
-            LANE_FLAG="--lane $LANE"
+          args=(--once --direct-api --poll-only)
+
+          if [ -n "${INPUT_LANE:-}" ]; then
+            args+=(--lane "$INPUT_LANE")
           fi
 
-          python main.py --once --direct-api --poll-only $LANE_FLAG
+          if [ "${INPUT_DRY_RUN:-false}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+
+          python main.py "${args[@]}"
