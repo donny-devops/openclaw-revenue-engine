@@ -1,3 +1,4 @@
+---
 name: Package
 
 on:
@@ -69,6 +70,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.publish_npm == 'true'
     permissions:
       contents: read
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -90,12 +93,20 @@ jobs:
           npm test
           npm run build
 
+      - name: Check npm token
+        id: npm-token
+        shell: bash
+        run: |
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
-        if: ${{ secrets.NPM_TOKEN != '' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: steps.npm-token.outputs.configured == 'true'
         run: npm publish --access public
 
       - name: Skip npm publish when token is missing
-        if: ${{ secrets.NPM_TOKEN == '' }}
+        if: steps.npm-token.outputs.configured != 'true'
         run: echo "NPM_TOKEN is not configured; skipping npm publish."
