@@ -1,0 +1,18 @@
+title = "openclaw-revenue-engine secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repository-specific false positives and documentation placeholders"
+paths = [
+  '''node_modules''',
+  '''dist''',
+  '''coverage''',
+  '''package-lock\.json'''
+]
+regexes = [
+  '''sk_test_[a-zA-Z0-9_]*placeholder''',
+  '''whsec_[a-zA-Z0-9_]*placeholder''',
+  '''github_[a-zA-Z0-9_]*placeholder'''
+]
