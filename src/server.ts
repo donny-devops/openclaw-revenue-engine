@@ -1,31 +1,16 @@
-import http from 'http';
+import app, { logger } from './index';
 
-import app, { appConfig, logger } from './index';
+const PORT = process.env.PORT ?? 3000;
 
-const server = http.createServer(app);
+const server = app.listen(PORT, () => {
+  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
+});
 
-server.listen(appConfig.port, () => {
-  logger.info('[openclaw-revenue-engine] Listening', {
-    port: appConfig.port,
-    env: appConfig.nodeEnv,
-    service: appConfig.serviceName,
-    version: appConfig.version,
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received; shutting down HTTP server');
+  server.close(() => {
+    logger.info('HTTP server closed');
   });
 });
 
-function shutdown(signal: NodeJS.Signals): void {
-  logger.info('[openclaw-revenue-engine] Shutdown signal received', { signal });
-
-  server.close((error?: Error) => {
-    if (error) {
-      logger.error('[openclaw-revenue-engine] Error during shutdown', { error });
-      process.exit(1);
-    }
-
-    logger.info('[openclaw-revenue-engine] Shutdown complete');
-    process.exit(0);
-  });
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+export default server;
