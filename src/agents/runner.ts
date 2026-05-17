@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 
+import { planMcpUsage } from '../mcp/planner';
 import { evaluateGuardrails, highestRisk } from './guardrails';
 import { selectModelProfile } from './modelRouter';
 import { loadAgentManifest, loadAgentManifests, loadModelRoutingPolicy } from './registry';
@@ -34,6 +35,7 @@ export function listAgents() {
     description: agent.description,
     model_profile: agent.model_profile,
     allowed_tools: agent.allowed_tools,
+    mcp_plan: planMcpUsage(agent),
   }));
 }
 
@@ -54,6 +56,7 @@ export function runAgent(input: AgentRunInput): AgentRunResult {
     risk === 'critical';
 
   const recommendedActions = buildActions(manifest.agent_id, risk);
+  const mcpPlan = planMcpUsage(manifest);
 
   return {
     request_id: input.request_id ?? crypto.randomUUID(),
@@ -66,11 +69,13 @@ export function runAgent(input: AgentRunInput): AgentRunResult {
     recommended_actions: recommendedActions,
     findings: guardrail.findings,
     redactions: guardrail.redactions,
+    mcp_plan: mcpPlan,
     human_review_required: humanReviewRequired,
     telemetry: {
       input_chars: JSON.stringify(input).length,
       output_actions: recommendedActions.length,
       guardrail_findings: guardrail.findings.length,
+      mcp_plan_steps: mcpPlan.length,
     },
   };
 }
