@@ -1,3 +1,4 @@
+---
 name: Release
 
 on:
@@ -57,7 +58,8 @@ jobs:
 
           ### Package
 
-          - Container image: `ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag }}`
+          - Container image:
+            `ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag }}`
           - Source tag: `${{ steps.vars.outputs.tag }}`
 
           ### Validation
