@@ -111,6 +111,7 @@ def read_json(url: str, api_key: str) -> Any:
         method="GET",
     )
 
+    # skipcq: BAN-B310 -- URL is built internally and validated as HTTPS-only above.
     with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
         body = response.read().decode("utf-8")
         return json.loads(body) if body else {}
@@ -159,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             logging.error("Moltgate API request failed with HTTP %s: %s", exc.code, exc.reason)
         return 1
-    except (ValueError, RuntimeError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+    except (ValueError, RuntimeError, urllib.error.URLError, TimeoutError) as exc:
         logging.error("Moltgate poll request failed: %s", exc)
         return 1
 
