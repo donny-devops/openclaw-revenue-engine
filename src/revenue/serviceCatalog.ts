@@ -1,46 +1,38 @@
 import { loadLaneCatalog, loadOpenClawConfig, loadServiceCatalog, loadTemplate } from './config';
 import { ClassifiedPaidRequest, LaneConfig, PaidRequestInput, RevenueSummary, ServiceConfig } from './types';
 
-function enabledLanes(): LaneConfig[] {
-  return loadLaneCatalog().lanes.filter((lane) => lane.enabled);
-}
+const enabledLanes = (): LaneConfig[] => loadLaneCatalog().lanes.filter((lane) => lane.enabled);
 
-function enabledServices(): ServiceConfig[] {
-  return loadServiceCatalog().services.filter((service) => service.enabled);
-}
+const enabledServices = (): ServiceConfig[] => loadServiceCatalog().services.filter((service) => service.enabled);
 
-export function listRevenueLanes(): LaneConfig[] {
-  return enabledLanes();
-}
+export const listRevenueLanes = (): LaneConfig[] => enabledLanes();
 
-export function listRevenueServices(): ServiceConfig[] {
-  return enabledServices();
-}
+export const listRevenueServices = (): ServiceConfig[] => enabledServices();
 
-export function getLane(slug: string): LaneConfig {
+export const getLane = (slug: string): LaneConfig => {
   const lane = enabledLanes().find((item) => item.slug === slug);
   if (!lane) {
     throw new Error(`Unknown or disabled lane: ${slug}`);
   }
   return lane;
-}
+};
 
-export function getService(slug: string): ServiceConfig {
+export const getService = (slug: string): ServiceConfig => {
   const service = enabledServices().find((item) => item.slug === slug);
   if (!service) {
     throw new Error(`Unknown or disabled service: ${slug}`);
   }
   return service;
-}
+};
 
-function keywordScore(service: ServiceConfig, haystack: string): number {
+const keywordScore = (service: ServiceConfig, haystack: string): number => {
   return service.keywords.reduce((score, keyword) => {
     const normalizedKeyword = keyword.toLowerCase();
     return haystack.includes(normalizedKeyword) ? score + normalizedKeyword.length : score;
   }, 0);
-}
+};
 
-function inferService(input: PaidRequestInput): ServiceConfig {
+const inferService = (input: PaidRequestInput): ServiceConfig => {
   if (input.service) return getService(input.service);
 
   const openclaw = loadOpenClawConfig();
@@ -51,19 +43,19 @@ function inferService(input: PaidRequestInput): ServiceConfig {
     .sort((a, b) => b.score - a.score);
 
   return ranked[0]?.service ?? getService(openclaw.engine.default_service);
-}
+};
 
-function inferLane(input: PaidRequestInput, service: ServiceConfig): LaneConfig {
+const inferLane = (input: PaidRequestInput, service: ServiceConfig): LaneConfig => {
   if (input.lane) return getLane(input.lane);
   return getLane(service.recommended_lane);
-}
+};
 
-function summarizeInput(input: PaidRequestInput): string {
+const summarizeInput = (input: PaidRequestInput): string => {
   const text = `${input.title ?? ''} ${input.body}`.replace(/\s+/g, ' ').trim();
   return text.length > 280 ? `${text.slice(0, 277)}...` : text;
-}
+};
 
-export function classifyPaidRequest(input: PaidRequestInput): ClassifiedPaidRequest {
+export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequest => {
   if (!input.body.trim()) {
     throw new Error('Paid request body is required');
   }
@@ -88,9 +80,9 @@ export function classifyPaidRequest(input: PaidRequestInput): ClassifiedPaidRequ
     requested_at: new Date().toISOString(),
     input_summary: summarizeInput(input),
   };
-}
+};
 
-export function getRevenueSummary(): RevenueSummary {
+export const getRevenueSummary = (): RevenueSummary => {
   const lanes = enabledLanes();
   const services = enabledServices();
   const openclaw = loadOpenClawConfig();
@@ -100,9 +92,9 @@ export function getRevenueSummary(): RevenueSummary {
     currency: loadLaneCatalog().currency,
     enabled_lanes: lanes.length,
     enabled_services: services.length,
-    min_price: Math.min(...prices),
-    max_price: Math.max(...prices),
+    min_price: prices.length > 0 ? Math.min(...prices) : 0,
+    max_price: prices.length > 0 ? Math.max(...prices) : 0,
     default_lane: openclaw.engine.default_lane,
     default_service: openclaw.engine.default_service,
   };
-}
+};
