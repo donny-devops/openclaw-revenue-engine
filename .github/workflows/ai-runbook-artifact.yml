@@ -1,0 +1,67 @@
+name: AI Runbook Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      incident_type:
+        description: Revenue incident type to prepare for
+        required: true
+        default: webhook-failure
+        type: choice
+        options:
+          - webhook-failure
+          - billing-anomaly
+          - usage-spike
+          - deployment-regression
+
+permissions:
+  contents: read
+
+jobs:
+  generate-runbook-artifact:
+    name: Generate operator runbook artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build runbook markdown
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cat > artifacts/ai-runbook.md <<'RUNBOOK'
+          # OpenClaw Revenue Engine AI Runbook
+
+          ## Incident Type
+          ${{ inputs.incident_type }}
+
+          ## Agent Chain
+          1. Revenue Operations Agent analyzes the event summary and risk level.
+          2. Compliance Review Agent checks for privacy, payment, and customer-impact risks.
+          3. Human operator reviews any action touching refunds, customer records, or delivery-impacting changes.
+
+          ## Default Model Routing
+          - Low-risk classification: `fast_classifier`
+          - Operational diagnosis: `reasoning_default`
+          - Customer/payment/security impact: `compliance_strict`
+
+          ## Required Evidence
+          - Request ID
+          - Provider event ID
+          - HTTP status and response body
+          - Timestamp
+          - Deployment SHA
+          - Relevant logs with secrets redacted
+
+          ## Hard Guardrails
+          - Do not execute refunds automatically.
+          - Do not expose secrets, customer payment details, or raw provider signatures.
+          - Do not modify customer records without human approval.
+          - Prefer reversible actions first.
+          RUNBOOK
+
+      - name: Upload runbook artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-runbook-${{ inputs.incident_type }}
+          path: artifacts/ai-runbook.md

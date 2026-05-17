@@ -1,20 +1,11 @@
 /**
  * tests/unit/index.envFallbacks.test.ts
  *
- * Exercises the `??` / `||` env-var fallback branches in src/index.ts that
- * fire only when the corresponding environment variable is absent:
- *   - LOG_LEVEL fallback to 'info' (line 13)
- *   - PORT fallback to 3000 (line 23)
- *   - CORS_ORIGIN fallback to 'http://localhost:3000' (line 58)
- *   - npm_package_version fallback to '1.0.0' (line 70)
- *   - status/statusCode fallback chain in error handler (lines 82–83)
- *
- * We reload the app inside jest.isolateModules() with the relevant env vars
- * cleared so the fallback side of each binary expression is taken.
+ * Exercises env-var fallback branches and app-level runtime metadata.
  */
 
-import request from 'supertest';
 import type { Application } from 'express';
+import request from 'supertest';
 
 describe('src/index.ts env-var fallback branches', () => {
   const originalEnv = { ...process.env };
@@ -27,9 +18,7 @@ describe('src/index.ts env-var fallback branches', () => {
     process.env = { ...originalEnv };
   });
 
-  it('boots with default LOG_LEVEL, PORT, CORS_ORIGIN, and version when env is bare', async () => {
-    // Keep webhook secrets so module-load requireEnv() doesn't throw, but
-    // strip everything else to force the fallback branches.
+  function loadAppWithBareEnv(): Application {
     process.env = {
       ...originalEnv,
       STRIPE_SECRET_KEY: 'sk_test_bare_env',
@@ -41,45 +30,68 @@ describe('src/index.ts env-var fallback branches', () => {
     delete process.env.CORS_ORIGIN;
     delete process.env.npm_package_version;
 
-    // We have to avoid app.listen actually binding — but src/index.ts calls
-    // listen unconditionally on import. Spy on net to suppress the bind side
-    // effect: silence the logger and rely on PORT=0 semantics if we did set
-    // it. Since we removed PORT, listen('3000') will try to bind. Stub it.
     let appInst: Application | undefined;
-    await new Promise<void>((resolve) => {
-      jest.isolateModules(() => {
-        // Stub express.Application.prototype.listen to a no-op for this load.
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const express = require('express') as typeof import('express');
-        // eslint-disable-next-line @typescript-eslint/unbound-method, @typescript-eslint/no-explicit-any
-        const origListen = (express.application as any).listen;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (express.application as any).listen = function (...args: unknown[]) {
-          // Call the callback (last arg if it's a function) without binding
-          const cb = args[args.length - 1];
-          if (typeof cb === 'function') {
-            (cb as () => void)();
-          }
-          return { close: () => undefined };
-        };
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const mod = require('../../src/index') as { default: Application };
-        appInst = mod.default;
-        // restore listen
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (express.application as any).listen = origListen;
-        resolve();
-      });
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('../../src/index') as { default: Application };
+      appInst = mod.default;
     });
 
-    expect(appInst).toBeDefined();
+    if (!appInst) {
+      throw new Error('App failed to load');
+    }
 
-    // Hit GET / to verify the version fallback was used in the response.
-    const res = await request(appInst as Application).get('/');
+    return appInst;
+  }
+
+  it('boots with default LOG_LEVEL, PORT, CORS_ORIGIN, and version when env is bare', async () => {
+    const appInst = loadAppWithBareEnv();
+    const res = await request(appInst).get('/');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       name: 'openclaw-revenue-engine',
       version: '1.0.0',
+      readiness: '/ready',
     });
+  });
+
+  it('returns health metadata', async () => {
+    const appInst = loadAppWithBareEnv();
+    const res = await request(appInst).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'ok',
+      service: 'openclaw-revenue-engine',
+      version: '1.0.0',
+    });
+    expect(res.body.timestamp).toEqual(expect.any(String));
+  });
+
+  it('returns readiness metadata', async () => {
+    const appInst = loadAppWithBareEnv();
+    const res = await request(appInst).get('/ready');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'ready',
+      service: 'openclaw-revenue-engine',
+      dependencies: {
+        stripeWebhook: 'lazy-configured',
+        githubWebhook: 'lazy-configured',
+      },
+    });
+  });
+
+  it('propagates inbound x-request-id', async () => {
+    const appInst = loadAppWithBareEnv();
+    const res = await request(appInst).get('/health').set('x-request-id', 'req-test-123');
+    expect(res.status).toBe(200);
+    expect(res.headers['x-request-id']).toBe('req-test-123');
+  });
+
+  it('generates x-request-id when one is absent', async () => {
+    const appInst = loadAppWithBareEnv();
+    const res = await request(appInst).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.headers['x-request-id']).toEqual(expect.any(String));
   });
 });

@@ -1,56 +1,3 @@
-# Dependabot configurationversion: 2
-updates:
-  # -----------------------------
-  # 1. GitHub Actions
-  # -----------------------------
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      actions:
-        patterns:
-          - "*"
-
-  # -----------------------------
-  # 2. Python (pip)
-  # -----------------------------
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    allow:
-      - dependency-type: "direct"
-    groups:
-      python-deps:
-        patterns:
-          - "*"
-    insecure-external-code-execution: "deny"
-
-  # -----------------------------
-  # 3. Docker
-  # -----------------------------
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      docker-images:
-        patterns:
-          - "*"
-
-  # -----------------------------
-  # 4. npm (if frontend exists)
-  # -----------------------------
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      node-packages:
-        patterns:
-          - "*"
-
 # Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 
@@ -116,9 +63,38 @@ updates:
     ignore:
       # Major version bumps for runtime-critical packages should be handled manually.
       - dependency-name: "express"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "stripe"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
+
+  # Python (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "direct"
+    labels:
+      - "dependencies"
+      - "python"
+    reviewers:
+      - "donny-devops"
+    assignees:
+      - "donny-devops"
+    commit-message:
+      prefix: "chore(python-deps)"
+      include: "scope"
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+    insecure-external-code-execution: "deny"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

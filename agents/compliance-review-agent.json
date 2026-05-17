@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "agent_id": "compliance_review_agent",
+  "name": "Compliance Review Agent",
+  "description": "Reviews outbound operational summaries and webhook-derived insights for privacy, payment, and security risk before delivery.",
+  "model_profile": "compliance_strict",
+  "allowed_tools": [
+    "scan_for_secrets",
+    "scan_for_pii",
+    "validate_claims",
+    "draft_remediation_notes"
+  ],
+  "inputs": [
+    "candidate_summary",
+    "event_metadata",
+    "delivery_context"
+  ],
+  "outputs": [
+    "approval_status",
+    "blocking_issues",
+    "required_redactions",
+    "revision_notes"
+  ],
+  "guardrails": {
+    "block_secret_exposure": true,
+    "block_payment_data_exposure": true,
+    "block_unverified_financial_claims": true,
+    "require_human_review_for_customer_impact": true
+  },
+  "success_criteria": [
+    "Blocks sensitive data leakage.",
+    "Distinguishes low-risk wording edits from delivery blockers.",
+    "Returns concrete remediation instructions."
+  ]
+}

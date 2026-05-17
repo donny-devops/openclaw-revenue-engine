@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "servers": [
+    {
+      "id": "github_context",
+      "name": "GitHub Context MCP",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "required_env": ["GITHUB_TOKEN"],
+      "allowed_capabilities": ["repo_read", "issue_read", "pull_request_read"],
+      "blocked_capabilities": ["repo_write", "secret_read", "workflow_write"],
+      "purpose": "Read-only repository context for agent analysis and runbook generation."
+    },
+    {
+      "id": "filesystem_docs",
+      "name": "Filesystem Docs MCP",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./docs", "./agents", "./config"],
+      "required_env": [],
+      "allowed_capabilities": ["file_read"],
+      "blocked_capabilities": ["file_write", "secret_read"],
+      "purpose": "Read-only local documentation and agent policy context."
+    }
+  ]
+}
