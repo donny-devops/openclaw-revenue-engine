@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "agent_id": "revenue_ops_agent",
+  "name": "Revenue Operations Agent",
+  "description": "Analyzes subscription, invoice, webhook, and usage events to recommend operational actions for the revenue engine.",
+  "model_profile": "reasoning_default",
+  "allowed_tools": [
+    "read_runtime_health",
+    "read_webhook_events",
+    "summarize_billing_anomalies",
+    "draft_operator_runbook"
+  ],
+  "inputs": [
+    "health_status",
+    "webhook_event_summary",
+    "billing_error_summary",
+    "usage_metric_summary"
+  ],
+  "outputs": [
+    "operational_summary",
+    "risk_level",
+    "recommended_actions",
+    "human_review_required"
+  ],
+  "guardrails": {
+    "never_execute_payments": true,
+    "never_modify_customer_records": true,
+    "require_human_review_for_refunds": true,
+    "redact_secrets": true
+  },
+  "success_criteria": [
+    "Classifies billing anomalies with clear severity.",
+    "Preserves uncertainty instead of inventing root causes.",
+    "Suggests reversible next steps before destructive actions."
+  ]
+}
