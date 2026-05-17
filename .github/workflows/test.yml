@@ -1,14 +1,16 @@
-name: Tests
+name: Extended Tests
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Run Tests
+    name: Integration, performance, and coverage
     runs-on: ubuntu-latest
 
     strategy:
@@ -24,9 +26,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run linter
         run: npm run lint --if-present
@@ -51,6 +54,6 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage/lcov.info
-          flags: unittests
+          flags: extended-tests
           name: codecov-openclaw-revenue-engine
           fail_ci_if_error: false
