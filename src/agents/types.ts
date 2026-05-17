@@ -49,6 +49,15 @@ export interface GuardrailFinding {
   message: string;
 }
 
+export interface AgentMcpUsagePlan {
+  server_id: string;
+  server_name: string;
+  capability: string;
+  purpose: string;
+  safe_to_execute: boolean;
+  blocked_reason?: string;
+}
+
 export interface AgentRunResult {
   request_id: string;
   agent_id: string;
@@ -60,10 +69,12 @@ export interface AgentRunResult {
   recommended_actions: string[];
   findings: GuardrailFinding[];
   redactions: string[];
+  mcp_plan: AgentMcpUsagePlan[];
   human_review_required: boolean;
   telemetry: {
     input_chars: number;
     output_actions: number;
     guardrail_findings: number;
+    mcp_plan_steps: number;
   };
 }
