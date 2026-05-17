@@ -21,6 +21,14 @@ from typing import Any
 
 DEFAULT_BASE_URL = "https://moltgate.com"
 REQUEST_TIMEOUT_SECONDS = 20
+ALLOWED_URL_SCHEMES = {"https"}
+VALID_LOG_LEVELS = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+}
 
 
 @dataclass(frozen=True)
@@ -30,6 +38,7 @@ class PollConfig:
     profile_handle: str | None
     lane: str | None
     dry_run: bool
+    event_name: str
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -42,13 +51,37 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def normalize_lane(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
+def normalize_base_url(value: str | None) -> str:
+    base_url = (value or DEFAULT_BASE_URL).rstrip("/")
+    parsed = urllib.parse.urlparse(base_url)
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"MOLTGATE_BASE_URL must use https, got {parsed.scheme or 'missing scheme'}")
+    if not parsed.netloc:
+        raise ValueError("MOLTGATE_BASE_URL must include a host")
+    return base_url
+
+
+def configure_logging() -> None:
+    requested_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = VALID_LOG_LEVELS.get(requested_level, logging.INFO)
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
+
+
 def load_config(args: argparse.Namespace) -> PollConfig:
     return PollConfig(
         api_key=os.getenv("MOLTGATE_API_KEY"),
-        base_url=(os.getenv("MOLTGATE_BASE_URL") or DEFAULT_BASE_URL).rstrip("/"),
+        base_url=normalize_base_url(os.getenv("MOLTGATE_BASE_URL")),
         profile_handle=os.getenv("MOLTGATE_PROFILE_HANDLE"),
-        lane=args.lane.strip() if args.lane else None,
+        lane=normalize_lane(args.lane),
         dry_run=bool(args.dry_run),
+        event_name=os.getenv("GITHUB_EVENT_NAME", ""),
     )
 
 
@@ -64,6 +97,10 @@ def build_inbox_url(config: PollConfig) -> str:
 
 
 def read_json(url: str, api_key: str) -> Any:
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"Refusing to open non-HTTPS URL: {parsed_url.scheme or 'missing scheme'}")
+
     request = urllib.request.Request(
         url,
         headers={
@@ -85,8 +122,10 @@ def poll_inbox(config: PollConfig) -> int:
         return 0
 
     if not config.api_key:
-        logging.warning("MOLTGATE_API_KEY is not configured; skipping scheduled poll without failure.")
-        return 0
+        if config.event_name == "schedule":
+            logging.warning("MOLTGATE_API_KEY is not configured; skipping scheduled poll without failure.")
+            return 0
+        raise RuntimeError("MOLTGATE_API_KEY is required for manual poll runs. Use dry_run=true to validate only.")
 
     payload = read_json(build_inbox_url(config), config.api_key)
     if isinstance(payload, dict):
@@ -101,19 +140,15 @@ def poll_inbox(config: PollConfig) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    configure_logging()
 
-    args = parse_args(argv or sys.argv[1:])
-    config = load_config(args)
+    args = parse_args(argv if argv is not None else sys.argv[1:])
 
     if not args.once:
         logging.warning("Long-running mode is not implemented; executing one poll pass.")
 
     try:
-        poll_inbox(config)
+        poll_inbox(load_config(args))
     except urllib.error.HTTPError as exc:
         if exc.code == 401:
             logging.error("Moltgate API authentication failed. Check MOLTGATE_API_KEY.")
@@ -124,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             logging.error("Moltgate API request failed with HTTP %s: %s", exc.code, exc.reason)
         return 1
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+    except (ValueError, RuntimeError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         logging.error("Moltgate poll request failed: %s", exc)
         return 1
 
