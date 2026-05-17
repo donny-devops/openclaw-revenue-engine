@@ -9,14 +9,15 @@ errors still fail fast so operators see actionable breakage.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urljoin
-
-import requests
 
 DEFAULT_BASE_URL = "https://moltgate.com"
 REQUEST_TIMEOUT_SECONDS = 20
@@ -51,16 +52,31 @@ def load_config(args: argparse.Namespace) -> PollConfig:
     )
 
 
-def build_headers(api_key: str) -> dict[str, str]:
-    return {
-        "Authorization": f"Bearer {api_key}",
-        "Accept": "application/json",
-        "User-Agent": "openclaw-revenue-engine-poll/1.0",
-    }
+def build_inbox_url(config: PollConfig) -> str:
+    params: dict[str, str] = {"status": "NEW"}
+    if config.lane:
+        params["lane"] = config.lane
+    if config.profile_handle:
+        params["profile"] = config.profile_handle
+
+    query_string = urllib.parse.urlencode(params)
+    return f"{config.base_url}/api/inbox/messages/?{query_string}"
 
 
-def build_inbox_url(base_url: str) -> str:
-    return urljoin(f"{base_url}/", "api/inbox/messages/")
+def read_json(url: str, api_key: str) -> Any:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "User-Agent": "openclaw-revenue-engine-poll/1.0",
+        },
+        method="GET",
+    )
+
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        body = response.read().decode("utf-8")
+        return json.loads(body) if body else {}
 
 
 def poll_inbox(config: PollConfig) -> int:
@@ -72,29 +88,7 @@ def poll_inbox(config: PollConfig) -> int:
         logging.warning("MOLTGATE_API_KEY is not configured; skipping scheduled poll without failure.")
         return 0
 
-    params: dict[str, str] = {"status": "NEW"}
-    if config.lane:
-        params["lane"] = config.lane
-    if config.profile_handle:
-        params["profile"] = config.profile_handle
-
-    response = requests.get(
-        build_inbox_url(config.base_url),
-        headers=build_headers(config.api_key),
-        params=params,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
-
-    if response.status_code == 401:
-        raise RuntimeError("Moltgate API authentication failed. Check MOLTGATE_API_KEY.")
-    if response.status_code == 403:
-        raise RuntimeError("Moltgate API authorization failed. Check token scopes/profile access.")
-    if response.status_code == 404:
-        raise RuntimeError(f"Moltgate inbox endpoint was not found at {response.url}.")
-
-    response.raise_for_status()
-
-    payload: Any = response.json()
+    payload = read_json(build_inbox_url(config), config.api_key)
     if isinstance(payload, dict):
         messages = payload.get("results") or payload.get("messages") or []
     elif isinstance(payload, list):
@@ -120,11 +114,18 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         poll_inbox(config)
-    except requests.RequestException as exc:
-        logging.error("Moltgate poll request failed: %s", exc)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            logging.error("Moltgate API authentication failed. Check MOLTGATE_API_KEY.")
+        elif exc.code == 403:
+            logging.error("Moltgate API authorization failed. Check token scopes/profile access.")
+        elif exc.code == 404:
+            logging.error("Moltgate inbox endpoint was not found at %s.", exc.url)
+        else:
+            logging.error("Moltgate API request failed with HTTP %s: %s", exc.code, exc.reason)
         return 1
-    except RuntimeError as exc:
-        logging.error("%s", exc)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        logging.error("Moltgate poll request failed: %s", exc)
         return 1
 
     return 0
