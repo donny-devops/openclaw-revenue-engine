@@ -24,8 +24,58 @@
     "a2a": {
       "enabled": true,
       "handoff_policy": "explicit_task_contracts_only"
+    },
+    "continuous_optimization": {
+      "enabled": true,
+      "feedback_sources": ["conversion_rate", "campaign_performance", "landing_page_events", "affiliate_lead_quality"],
+      "policy": "recommend_copy_and_funnel_changes_before_apply"
+    },
+    "dynamic_scaling_and_throttling": {
+      "enabled": true,
+      "queue_strategy": "classify_prioritize_then_process_async",
+      "backpressure_policy": "protect_core_revenue_engine_first"
+    },
+    "proactive_compliance_audits": {
+      "enabled": true,
+      "audit_targets": ["active_funnels", "high_traffic_campaigns", "affiliate_network_terms", "ad_platform_terms"],
+      "policy": "flag_live_campaign_drift_for_operator_review"
     }
   },
+  "automation_loops": [
+    {
+      "slug": "conversion-optimization-loop",
+      "name": "Conversion Optimization Loop",
+      "trigger": "telemetry_ingested",
+      "cadence": "event_driven",
+      "agents": ["data-synthesis-agent", "content-outreach-agent", "quality-guardrail-agent"],
+      "inputs": ["conversion_rate", "campaign_performance", "lead_quality", "landing_page_events"],
+      "outputs": ["copy_recommendations", "landing_page_experiments", "risk_flags"],
+      "auto_apply": false,
+      "human_review_required": true
+    },
+    {
+      "slug": "traffic-buffer-loop",
+      "name": "Traffic Buffer and Throttle Loop",
+      "trigger": "inbound_spike_detected",
+      "cadence": "event_driven",
+      "agents": ["intake-routing-agent", "revenue-intake-orchestrator", "config-agent"],
+      "inputs": ["inbound_payload", "queue_depth", "rate_limit_state", "tenant_priority"],
+      "outputs": ["queue_priority", "throttle_decision", "operator_alert"],
+      "auto_apply": true,
+      "human_review_required": false
+    },
+    {
+      "slug": "proactive-compliance-loop",
+      "name": "Proactive Compliance Audit Loop",
+      "trigger": "scheduled_or_policy_change_detected",
+      "cadence": "hourly_for_high_traffic_funnels",
+      "agents": ["compliance-quality-agent", "multimodal-evidence-agent", "quality-guardrail-agent"],
+      "inputs": ["live_campaign_snapshot", "affiliate_policy", "ad_platform_terms", "traffic_volume"],
+      "outputs": ["compliance_drift_flags", "recommended_pause_or_edit", "audit_summary"],
+      "auto_apply": false,
+      "human_review_required": true
+    }
+  ],
   "agents": [
     {
       "slug": "revenue-intake-orchestrator",
@@ -37,6 +87,58 @@
       "tools": ["revenue_catalog", "policy_registry", "mcp_router"],
       "mcp_servers": ["github-mcp-server", "postgres-mcp-server"],
       "mcp_tools": ["repos.get", "issues.create", "postgres.query_readonly", "pgvector.search"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "intake-routing-agent",
+      "name": "Intake and Routing Agent",
+      "type": "routing",
+      "purpose": "Queue, classify, prioritize, and throttle inbound payloads during traffic spikes.",
+      "inputs": ["inbound_payload", "tenant_priority", "queue_depth", "rate_limit_state"],
+      "outputs": ["classification", "priority", "queue_target", "throttle_decision"],
+      "tools": ["queue_manager", "rate_limiter", "mcp_router"],
+      "mcp_servers": ["postgres-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["postgres.query_readonly", "issues.create"],
+      "human_review_required": false,
+      "enabled": true
+    },
+    {
+      "slug": "data-synthesis-agent",
+      "name": "Data Synthesis Agent",
+      "type": "analytics",
+      "purpose": "Analyze conversion, campaign, funnel, and lead-quality telemetry for optimization recommendations.",
+      "inputs": ["conversion_rate", "campaign_performance", "landing_page_events", "affiliate_lead_quality"],
+      "outputs": ["performance_summary", "optimization_signal", "experiment_recommendations"],
+      "tools": ["telemetry_reader", "rag_retriever", "mcp_router"],
+      "mcp_servers": ["postgres-mcp-server"],
+      "mcp_tools": ["postgres.query_readonly", "pgvector.search"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "content-outreach-agent",
+      "name": "Content and Outreach Agent",
+      "type": "content",
+      "purpose": "Draft campaign copy and landing page experiments based on performance telemetry.",
+      "inputs": ["optimization_signal", "brand_rules", "campaign_goal"],
+      "outputs": ["ad_copy_variants", "landing_page_edits", "experiment_plan"],
+      "tools": ["content_generator", "policy_registry", "mcp_router"],
+      "mcp_servers": ["filesystem-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["files.read", "files.write", "repos.contents.write", "pulls.create"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "compliance-quality-agent",
+      "name": "Compliance and Quality Agent",
+      "type": "compliance",
+      "purpose": "Audit live funnels and generated content against affiliate and ad platform policy constraints.",
+      "inputs": ["campaign_snapshot", "affiliate_policy", "ad_platform_terms", "draft_content"],
+      "outputs": ["compliance_flags", "required_edits", "approval_status"],
+      "tools": ["policy_registry", "rag_retriever", "mcp_router"],
+      "mcp_servers": ["filesystem-mcp-server", "postgres-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["files.read", "postgres.query_readonly", "pgvector.search", "issues.create"],
       "human_review_required": true,
       "enabled": true
     },
