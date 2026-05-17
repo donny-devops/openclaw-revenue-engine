@@ -15,8 +15,9 @@ describe('revenue routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.summary).toMatchObject({
       currency: 'USD',
-      enabled_lanes: 4,
+      enabled_lanes: 3,
       enabled_services: 5,
+      default_lane: 'detailed-request',
     });
   });
 
@@ -26,7 +27,13 @@ describe('revenue routes', () => {
 
     expect(lanes.status).toBe(200);
     expect(services.status).toBe(200);
-    expect(lanes.body.lanes).toEqual(expect.arrayContaining([expect.objectContaining({ slug: 'standard' })]));
+    expect(lanes.body.lanes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ slug: 'small-request', price: 19 }),
+        expect.objectContaining({ slug: 'detailed-request', price: 29 }),
+        expect.objectContaining({ slug: 'real-offer', price: 49 }),
+      ]),
+    );
     expect(services.body.services).toEqual(expect.arrayContaining([expect.objectContaining({ slug: 'repo-triage' })]));
   });
 
@@ -35,23 +42,23 @@ describe('revenue routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.openclaw.engine).toMatchObject({
       name: 'openclaw-revenue-engine',
-      default_lane: 'standard',
+      default_lane: 'detailed-request',
     });
   });
 
   it('classifies paid requests', async () => {
     const res = await request(app).post('/revenue/classify').send({
-      title: 'Repo triage',
-      body: 'Please review my GitHub portfolio repo and README.',
+      title: 'Repository triage',
+      body: 'Please review my GitHub portfolio repository and README.',
     });
 
     expect(res.status).toBe(200);
     expect(res.body.classification).toMatchObject({
       currency: 'USD',
-      estimated_revenue: 25,
+      estimated_revenue: 29,
     });
     expect(res.body.classification.service.slug).toBe('repo-triage');
-    expect(res.body.classification.lane.slug).toBe('standard');
+    expect(res.body.classification.lane.slug).toBe('detailed-request');
   });
 
   it('rejects invalid classify payloads', async () => {
