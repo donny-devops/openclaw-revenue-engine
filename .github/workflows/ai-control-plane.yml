@@ -1,0 +1,37 @@
+name: AI Control Plane
+
+on:
+  pull_request:
+    paths:
+      - agents/**
+      - config/model-routing.json
+      - mcp/**
+      - scripts/validate-ai-control-plane.mjs
+      - .github/workflows/ai-control-plane.yml
+  push:
+    branches:
+      - main
+    paths:
+      - agents/**
+      - config/model-routing.json
+      - mcp/**
+      - scripts/validate-ai-control-plane.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ai-control-plane:
+    name: Validate agent, model, and MCP configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate AI control plane
+        run: node scripts/validate-ai-control-plane.mjs
