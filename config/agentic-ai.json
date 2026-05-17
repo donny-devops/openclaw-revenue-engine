@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "operator_review",
+  "default_orchestrator": "revenue-intake-orchestrator",
+  "capabilities": {
+    "multimodal": {
+      "enabled": true,
+      "supported_inputs": ["text", "image", "document", "log_excerpt", "repository_url"],
+      "policy": "summarize_then_human_review"
+    },
+    "rag": {
+      "enabled": true,
+      "vector_databases": ["pgvector", "qdrant", "pinecone", "weaviate"],
+      "default_vector_database": "pgvector",
+      "embedding_provider": "huggingface",
+      "retrieval_policy": "cite_sources_and_preserve_scope"
+    },
+    "mcp": {
+      "enabled": true,
+      "servers": ["github", "filesystem", "postgres", "browser", "cloud-control"],
+      "policy": "least_privilege_tool_access"
+    },
+    "a2a": {
+      "enabled": true,
+      "handoff_policy": "explicit_task_contracts_only"
+    }
+  },
+  "agents": [
+    {
+      "slug": "revenue-intake-orchestrator",
+      "name": "Revenue Intake Orchestrator",
+      "type": "orchestrator",
+      "purpose": "Classify Moltgate requests into paid lanes, services, agent tasks, and operator checklists.",
+      "inputs": ["customer_request", "lane_catalog", "service_catalog"],
+      "outputs": ["lane", "service", "labels", "agent_plan", "delivery_checklist"],
+      "tools": ["revenue_catalog", "policy_registry", "mcp_router"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "config-agent",
+      "name": "Configuration Agent",
+      "type": "config",
+      "purpose": "Validate environment, secrets, workflow, package, release, and cloud deployment configuration.",
+      "inputs": ["repository_config", "workflow_logs", "environment_matrix"],
+      "outputs": ["config_findings", "required_secrets", "remediation_plan"],
+      "tools": ["secret_scan", "github_actions", "policy_registry"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "swe-remediation-agent",
+      "name": "SWE Remediation Agent",
+      "type": "software_engineering",
+      "purpose": "Draft patch plans, tests, validation commands, and pull request summaries for paid debug requests.",
+      "inputs": ["issue_context", "repository_files", "ci_logs"],
+      "outputs": ["root_cause", "solution_patch", "tests", "pull_request_summary"],
+      "tools": ["github", "rag_retriever", "mcp_router"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "multimodal-evidence-agent",
+      "name": "Multimodal Evidence Agent",
+      "type": "analysis",
+      "purpose": "Summarize screenshots, logs, documents, and repository evidence for operator-reviewed responses.",
+      "inputs": ["image", "document", "log_excerpt", "repository_context"],
+      "outputs": ["evidence_summary", "risk_flags", "source_notes"],
+      "tools": ["vision_model", "document_parser", "rag_retriever"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "quality-guardrail-agent",
+      "name": "Quality Guardrail Agent",
+      "type": "guardrail",
+      "purpose": "Review draft outputs for scope, secret exposure, unsafe automation, and deliverable completeness.",
+      "inputs": ["draft_response", "lane", "service", "policy_registry"],
+      "outputs": ["risk_flags", "required_edits", "approval_status"],
+      "tools": ["secret_scan", "policy_registry"],
+      "human_review_required": true,
+      "enabled": true
+    }
+  ]
+}
