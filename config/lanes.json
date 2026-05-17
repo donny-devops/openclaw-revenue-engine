@@ -3,46 +3,64 @@
   "currency": "USD",
   "lanes": [
     {
-      "slug": "micro",
-      "name": "Micro",
-      "price": 5,
-      "sla_hours": 48,
-      "capabilities": ["quick_question", "repo_pointer", "low_complexity_answer"],
-      "deliverables": ["short_answer", "next_step_list"],
-      "max_input_chars": 1200,
-      "human_review_required": false,
+      "slug": "small-request",
+      "name": "Small Request",
+      "price": 19,
+      "sla_hours": 24,
+      "capabilities": [
+        "quick_question",
+        "light_repo_review",
+        "single_issue_guidance"
+      ],
+      "deliverables": [
+        "concise_answer",
+        "next_step_list",
+        "copy_paste_snippet_when_applicable"
+      ],
+      "max_input_chars": 3000,
+      "human_review_required": true,
       "enabled": true
     },
     {
-      "slug": "standard",
-      "name": "Standard",
-      "price": 25,
+      "slug": "detailed-request",
+      "name": "Detailed Request",
+      "price": 29,
       "sla_hours": 12,
-      "capabilities": ["repo_triage", "workflow_debug", "implementation_plan"],
-      "deliverables": ["triage_report", "fix_plan", "copy_paste_code"],
-      "max_input_chars": 6000,
+      "capabilities": [
+        "repo_triage",
+        "workflow_debug",
+        "implementation_plan",
+        "configuration_review"
+      ],
+      "deliverables": [
+        "triage_report",
+        "fix_plan",
+        "copy_paste_code",
+        "validation_checklist"
+      ],
+      "max_input_chars": 8000,
       "human_review_required": true,
       "enabled": true
     },
     {
-      "slug": "priority",
-      "name": "Priority",
-      "price": 75,
-      "sla_hours": 4,
-      "capabilities": ["ci_debug", "security_triage", "branch_pr_plan", "urgent_fix"],
-      "deliverables": ["root_cause_report", "solution_patch", "pr_summary"],
-      "max_input_chars": 12000,
-      "human_review_required": true,
-      "enabled": true
-    },
-    {
-      "slug": "ultra",
-      "name": "Ultra",
-      "price": 199,
-      "sla_hours": 1,
-      "capabilities": ["devsecops_audit", "multi_file_patch", "architecture_review", "repo_hardening"],
-      "deliverables": ["executive_summary", "technical_audit", "implementation_bundle", "followup_checklist"],
-      "max_input_chars": 25000,
+      "slug": "real-offer",
+      "name": "Real Offer",
+      "price": 49,
+      "sla_hours": 6,
+      "capabilities": [
+        "ci_debug",
+        "security_triage",
+        "branch_pr_plan",
+        "offer_packaging",
+        "repo_hardening"
+      ],
+      "deliverables": [
+        "root_cause_report",
+        "solution_patch",
+        "pr_summary",
+        "delivery_ready_offer"
+      ],
+      "max_input_chars": 15000,
       "human_review_required": true,
       "enabled": true
     }
