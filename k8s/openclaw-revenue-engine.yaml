@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-revenue-engine
+  labels:
+    app: openclaw-revenue-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openclaw-revenue-engine
+  template:
+    metadata:
+      labels:
+        app: openclaw-revenue-engine
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/donny-devops/openclaw-revenue-engine:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: openclaw-revenue-engine-secrets
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openclaw-revenue-engine
+spec:
+  selector:
+    app: openclaw-revenue-engine
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
