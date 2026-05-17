@@ -1,13 +1,17 @@
 import { classifyPaidRequest, getRevenueSummary, listRevenueLanes, listRevenueServices } from '../../src/revenue/serviceCatalog';
 
 describe('revenue service catalog', () => {
-  it('loads editable lane pricing defaults', () => {
+  it('loads editable Moltgate offer lane defaults', () => {
     const lanes = listRevenueLanes();
-    expect(lanes.map((lane) => lane.slug)).toEqual(expect.arrayContaining(['micro', 'standard', 'priority', 'ultra']));
-    expect(lanes.find((lane) => lane.slug === 'standard')).toMatchObject({
-      price: 25,
+    expect(lanes.map((lane) => lane.slug)).toEqual(
+      expect.arrayContaining(['small-request', 'detailed-request', 'real-offer']),
+    );
+    expect(lanes.find((lane) => lane.slug === 'small-request')).toMatchObject({
+      price: 19,
       human_review_required: true,
     });
+    expect(lanes.find((lane) => lane.slug === 'detailed-request')).toMatchObject({ price: 29 });
+    expect(lanes.find((lane) => lane.slug === 'real-offer')).toMatchObject({ price: 49 });
   });
 
   it('loads service catalog defaults', () => {
@@ -21,13 +25,13 @@ describe('revenue service catalog', () => {
     const summary = getRevenueSummary();
     expect(summary).toMatchObject({
       currency: 'USD',
-      enabled_lanes: 4,
+      enabled_lanes: 3,
       enabled_services: 5,
-      default_lane: 'standard',
+      default_lane: 'detailed-request',
       default_service: 'repo-triage',
     });
-    expect(summary.min_price).toBe(5);
-    expect(summary.max_price).toBe(199);
+    expect(summary.min_price).toBe(19);
+    expect(summary.max_price).toBe(49);
   });
 
   it('classifies CI workflow requests into the actions debug service', () => {
@@ -37,9 +41,11 @@ describe('revenue service catalog', () => {
     });
 
     expect(classification.service.slug).toBe('actions-debug');
-    expect(classification.lane.slug).toBe('priority');
-    expect(classification.estimated_revenue).toBe(75);
-    expect(classification.labels).toEqual(expect.arrayContaining(['moltgate', 'paid-request', 'lane:priority', 'service:actions-debug']));
+    expect(classification.lane.slug).toBe('real-offer');
+    expect(classification.estimated_revenue).toBe(49);
+    expect(classification.labels).toEqual(
+      expect.arrayContaining(['moltgate', 'paid-request', 'lane:real-offer', 'service:actions-debug']),
+    );
     expect(classification.deliverable_template).toContain('GitHub Actions Debug Sprint');
   });
 
@@ -50,27 +56,27 @@ describe('revenue service catalog', () => {
     });
 
     expect(classification.service.slug).toBe('repo-triage');
-    expect(classification.lane.slug).toBe('standard');
+    expect(classification.lane.slug).toBe('detailed-request');
   });
 
   it('honors explicit lane and service overrides', () => {
     const classification = classifyPaidRequest({
-      lane: 'ultra',
+      lane: 'real-offer',
       service: 'openclaw-setup',
       body: 'Set up my Moltgate paid lanes and OpenClaw polling workflow.',
     });
 
     expect(classification.service.slug).toBe('openclaw-setup');
-    expect(classification.lane.slug).toBe('ultra');
-    expect(classification.estimated_revenue).toBe(199);
+    expect(classification.lane.slug).toBe('real-offer');
+    expect(classification.estimated_revenue).toBe(49);
   });
 
   it('enforces selected lane input limits', () => {
     expect(() => classifyPaidRequest({
-      lane: 'micro',
+      lane: 'small-request',
       service: 'repo-triage',
-      body: 'x'.repeat(1300),
-    })).toThrow('Paid request exceeds micro lane max_input_chars limit');
+      body: 'x'.repeat(3100),
+    })).toThrow('Paid request exceeds small-request lane max_input_chars limit');
   });
 
   it('rejects empty paid request bodies', () => {
