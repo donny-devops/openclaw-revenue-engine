@@ -26,6 +26,8 @@ RUN npm ci
 # Copy source and config
 COPY tsconfig.json ./
 COPY src ./src
+COPY config ./config
+COPY services ./services
 
 # Compile TypeScript
 RUN npm run build
@@ -43,6 +45,10 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy compiled output from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy revenue configuration and deliverable templates
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/services ./services
 
 # Copy package.json for metadata
 COPY package.json ./

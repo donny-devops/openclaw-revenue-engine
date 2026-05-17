@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "engine": {
+    "name": "openclaw-revenue-engine",
+    "mode": "operator_review",
+    "default_lane": "detailed-request",
+    "default_service": "repo-triage",
+    "delivery_policy": "draft_then_human_review"
+  },
+  "routing": {
+    "source": "moltgate",
+    "poll_workflow": "Revenue Engine - Poll",
+    "issue_labels": ["moltgate", "paid-request", "needs-delivery"],
+    "priority_labels": {
+      "small-request": ["lane:small-request"],
+      "detailed-request": ["lane:detailed-request"],
+      "real-offer": ["lane:real-offer", "priority", "human-review"]
+    }
+  },
+  "guardrails": {
+    "require_human_review": true,
+    "block_secret_echo": true,
+    "block_payment_execution": true,
+    "block_customer_record_mutation": true,
+    "allow_issue_creation": true,
+    "allow_pull_request_creation": false
+  },
+  "delivery": {
+    "create_github_issue": true,
+    "create_draft_response": true,
+    "auto_send_response": false,
+    "include_operator_checklist": true
+  }
+}
