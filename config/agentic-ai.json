@@ -17,7 +17,8 @@
     },
     "mcp": {
       "enabled": true,
-      "servers": ["github", "filesystem", "postgres", "browser", "cloud-control"],
+      "gateway_config": "config/mcp-gateway.json",
+      "servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server", "cloud-control-mcp-server"],
       "policy": "least_privilege_tool_access"
     },
     "a2a": {
@@ -34,6 +35,8 @@
       "inputs": ["customer_request", "lane_catalog", "service_catalog"],
       "outputs": ["lane", "service", "labels", "agent_plan", "delivery_checklist"],
       "tools": ["revenue_catalog", "policy_registry", "mcp_router"],
+      "mcp_servers": ["github-mcp-server", "postgres-mcp-server"],
+      "mcp_tools": ["repos.get", "issues.create", "postgres.query_readonly", "pgvector.search"],
       "human_review_required": true,
       "enabled": true
     },
@@ -44,7 +47,9 @@
       "purpose": "Validate environment, secrets, workflow, package, release, and cloud deployment configuration.",
       "inputs": ["repository_config", "workflow_logs", "environment_matrix"],
       "outputs": ["config_findings", "required_secrets", "remediation_plan"],
-      "tools": ["secret_scan", "github_actions", "policy_registry"],
+      "tools": ["secret_scan", "github_actions", "policy_registry", "mcp_router"],
+      "mcp_servers": ["github-mcp-server", "cloud-control-mcp-server"],
+      "mcp_tools": ["actions.runs.read", "actions.logs.read", "terraform.plan", "kubernetes.diff"],
       "human_review_required": true,
       "enabled": true
     },
@@ -56,6 +61,8 @@
       "inputs": ["issue_context", "repository_files", "ci_logs"],
       "outputs": ["root_cause", "solution_patch", "tests", "pull_request_summary"],
       "tools": ["github", "rag_retriever", "mcp_router"],
+      "mcp_servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server"],
+      "mcp_tools": ["repos.contents.read", "repos.contents.write", "pulls.create", "actions.logs.read", "pgvector.search"],
       "human_review_required": true,
       "enabled": true
     },
@@ -66,7 +73,9 @@
       "purpose": "Summarize screenshots, logs, documents, and repository evidence for operator-reviewed responses.",
       "inputs": ["image", "document", "log_excerpt", "repository_context"],
       "outputs": ["evidence_summary", "risk_flags", "source_notes"],
-      "tools": ["vision_model", "document_parser", "rag_retriever"],
+      "tools": ["vision_model", "document_parser", "rag_retriever", "mcp_router"],
+      "mcp_servers": ["filesystem-mcp-server", "postgres-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["files.read", "pgvector.search", "actions.logs.read"],
       "human_review_required": true,
       "enabled": true
     },
@@ -77,7 +86,9 @@
       "purpose": "Review draft outputs for scope, secret exposure, unsafe automation, and deliverable completeness.",
       "inputs": ["draft_response", "lane", "service", "policy_registry"],
       "outputs": ["risk_flags", "required_edits", "approval_status"],
-      "tools": ["secret_scan", "policy_registry"],
+      "tools": ["secret_scan", "policy_registry", "mcp_router"],
+      "mcp_servers": ["github-mcp-server", "filesystem-mcp-server"],
+      "mcp_tools": ["repos.contents.read", "files.read"],
       "human_review_required": true,
       "enabled": true
     }
