@@ -1,32 +1,31 @@
 /**
  * tests/unit/webhook.fallbacks.test.ts
  *
- * Targets the small `??` / `||` fallback branches in the webhook handlers
- * that are not exercised by the main routing tests:
- *   - requireEnv throws when its var is unset (module-load guard)
+ * Targets fallback branches in the webhook handlers:
+ *   - missing provider env vars fail at request time with controlled 500 responses
  *   - stripe: invoice.id ?? 'unknown', next_payment_attempt ?? 'none'
- *   - stripe: non-Error catch path → 'Unknown error'
+ *   - stripe: non-Error catch path -> 'Unknown error'
  *   - github: array-valued event/delivery headers
- *   - github: object body (already-parsed by upstream JSON middleware)
- *   - github: missing delivery header on signature mismatch (delivery ?? 'unknown')
- *   - github: non-Error catch path → 'Unknown error'
+ *   - github: object body handling and missing delivery fallback
+ *   - github: non-Error catch path -> 'Unknown error'
  */
 
-import type { Request, Response } from 'express';
 import crypto from 'crypto';
+import type { Request, Response } from 'express';
+
 import {
   buildGitHubPayload,
   buildStripePayload,
   GITHUB_TEST_WEBHOOK_SECRET,
-  STRIPE_TEST_WEBHOOK_SECRET,
   mockResponse,
+  STRIPE_TEST_WEBHOOK_SECRET,
 } from '../helpers/fixtures';
 
 // ---------------------------------------------------------------------------
-// requireEnv guards — module load fails when required env vars are missing
+// Request-time configuration guards
 // ---------------------------------------------------------------------------
 
-describe('requireEnv guards at module load', () => {
+describe('webhook configuration guards at request time', () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
@@ -34,34 +33,75 @@ describe('requireEnv guards at module load', () => {
     jest.resetModules();
   });
 
-  it('stripe.webhook throws if STRIPE_SECRET_KEY is missing', () => {
+  it('stripe.webhook returns 500 if STRIPE_SECRET_KEY is missing', () => {
     delete process.env.STRIPE_SECRET_KEY;
-    expect(() => {
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('../../src/webhooks/stripe.webhook');
-      });
-    }).toThrow(/STRIPE_SECRET_KEY/);
+    process.env.STRIPE_WEBHOOK_SECRET = STRIPE_TEST_WEBHOOK_SECRET;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('../../src/webhooks/stripe.webhook') as typeof import('../../src/webhooks/stripe.webhook');
+      const { body, signature } = buildStripePayload('evt_missing_secret', {}, STRIPE_TEST_WEBHOOK_SECRET);
+      const captured = mockResponse();
+      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      mod.stripeWebhookHandler(
+        { body, headers: { 'stripe-signature': signature } } as unknown as Request,
+        captured.res as Response,
+      );
+
+      expect(captured.statusCode).toBe(500);
+      expect(captured.body).toMatchObject({ error: 'Stripe webhook is not configured' });
+      errSpy.mockRestore();
+    });
   });
 
-  it('stripe.webhook throws if STRIPE_WEBHOOK_SECRET is missing', () => {
+  it('stripe.webhook returns 500 if STRIPE_WEBHOOK_SECRET is missing', () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_missing_webhook_secret';
     delete process.env.STRIPE_WEBHOOK_SECRET;
-    expect(() => {
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('../../src/webhooks/stripe.webhook');
-      });
-    }).toThrow(/STRIPE_WEBHOOK_SECRET/);
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('../../src/webhooks/stripe.webhook') as typeof import('../../src/webhooks/stripe.webhook');
+      const { body, signature } = buildStripePayload('evt_missing_webhook_secret', {}, STRIPE_TEST_WEBHOOK_SECRET);
+      const captured = mockResponse();
+      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      mod.stripeWebhookHandler(
+        { body, headers: { 'stripe-signature': signature } } as unknown as Request,
+        captured.res as Response,
+      );
+
+      expect(captured.statusCode).toBe(500);
+      expect(captured.body).toMatchObject({ error: 'Stripe webhook is not configured' });
+      errSpy.mockRestore();
+    });
   });
 
-  it('github.webhook throws if GITHUB_WEBHOOK_SECRET is missing', () => {
+  it('github.webhook returns 500 if GITHUB_WEBHOOK_SECRET is missing', () => {
     delete process.env.GITHUB_WEBHOOK_SECRET;
-    expect(() => {
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('../../src/webhooks/github.webhook');
-      });
-    }).toThrow(/GITHUB_WEBHOOK_SECRET/);
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('../../src/webhooks/github.webhook') as typeof import('../../src/webhooks/github.webhook');
+      const built = buildGitHubPayload('ping', {}, GITHUB_TEST_WEBHOOK_SECRET);
+      const captured = mockResponse();
+      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      mod.githubWebhookHandler(
+        {
+          body: built.body,
+          headers: {
+            'x-hub-signature-256': built.signature,
+            'x-github-event': 'ping',
+          },
+        } as unknown as Request,
+        captured.res as Response,
+      );
+
+      expect(captured.statusCode).toBe(500);
+      expect(captured.body).toMatchObject({ error: 'GitHub webhook is not configured' });
+      errSpy.mockRestore();
+    });
   });
 });
 
@@ -70,7 +110,6 @@ describe('requireEnv guards at module load', () => {
 // ---------------------------------------------------------------------------
 
 describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () => {
-  // Mock the stripe SDK so constructEvent is controllable
   const mockConstructEvent = jest.fn();
 
   jest.doMock('stripe', () => {
@@ -103,7 +142,6 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     mockConstructEvent.mockReturnValueOnce({
       id: 'evt_fallback_1',
       type: 'invoice.payment_succeeded',
-      // id is undefined to hit the `?? 'unknown'` branch
       data: { object: { customer: 'cus_x', amount_paid: 100, currency: 'usd' } },
     });
     const captured = mockResponse();
@@ -118,7 +156,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     mockConstructEvent.mockReturnValueOnce({
       id: 'evt_fallback_2',
       type: 'invoice.payment_failed',
-      data: { object: { id: 'in_x', customer: 'cus_x' } }, // no next_payment_attempt
+      data: { object: { id: 'in_x', customer: 'cus_x' } },
     });
     const captured = mockResponse();
     stripeWebhookHandler(req(), captured.res as Response);
@@ -146,7 +184,6 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
       id: 'evt_fallback_3',
       type: 'customer.subscription.created',
       data: {
-        // accessing .id on this proxy throws a non-Error string
         object: new Proxy({}, {
           get() {
             // eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -197,16 +234,6 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
   });
 
   it('accepts an already-parsed object body (non-Buffer)', () => {
-    // When the body is already a plain object (e.g. an upstream JSON parser ran),
-    // the handler must skip JSON.parse and use the object directly. We must
-    // also compute the signature over the JSON form the handler sees: but with
-    // an object body, signature verification works on `body as Buffer` cast and
-    // will fail timing-safe equality, so we expect 401 here. The branch we
-    // need is the `instanceof Buffer` ternary, which fires before verification
-    // when handler tries to extract payload — but actually verification runs
-    // first. Instead, drive the non-Buffer branch by supplying a Buffer that
-    // matches signature; then assert success. The conditional that flips on
-    // body type is hit during the payload extraction phase.
     const payload = { ref: 'refs/heads/main', repository: { full_name: 'a/b' }, pusher: { name: 'x' } };
     const bodyBuf = Buffer.from(JSON.stringify(payload), 'utf8');
     const sig = `sha256=${crypto.createHmac('sha256', GITHUB_TEST_WEBHOOK_SECRET).update(bodyBuf).digest('hex')}`;
@@ -232,7 +259,6 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
       headers: {
         'x-hub-signature-256': 'sha256=deadbeef00000000000000000000000000000000000000000000000000000000',
         'x-github-event': 'push',
-        // x-github-delivery intentionally omitted to drive the `?? 'unknown'` branch
       },
     } as unknown as Request;
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -260,23 +286,11 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
   });
 
   it('returns 500 with generic message when handler throws a non-Error', () => {
-    // Build a payload whose `repository` field is a getter that throws a string.
-    // The handler's catch branch then hits the `err instanceof Error` fallback.
-    // We need the signature to verify, so we sign the JSON.stringify form.
-    // JSON.stringify will invoke the getter and throw — so instead, sign a
-    // valid serialised body and rely on the fact that the handler parses the
-    // body itself with JSON.parse. Supply a body that parses to an object
-    // *after* signature check but whose property accesses throw a non-Error.
-    // The simplest: an array body — push handler accesses .repository.full_name
-    // on undefined, which throws a TypeError (Error instance). To force a
-    // non-Error throw, we can monkey-patch JSON.parse for this call only.
     const goodBody = Buffer.from(JSON.stringify({ ref: 'refs/heads/main' }), 'utf8');
     const sig = `sha256=${crypto.createHmac('sha256', GITHUB_TEST_WEBHOOK_SECRET).update(goodBody).digest('hex')}`;
     const origParse = JSON.parse;
     const parseSpy = jest.spyOn(JSON, 'parse').mockImplementation((_s: string) => {
-      // Restore after first call so we don't break the rest of Jest.
       JSON.parse = origParse;
-      // Return an object whose `repository` access throws a non-Error string.
       return new Proxy({ ref: 'refs/heads/main' }, {
         get(t, k) {
           if (k === 'repository') {
