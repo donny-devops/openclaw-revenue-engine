@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "services": [
+    {
+      "slug": "repo-triage",
+      "name": "GitHub Repo Triage Report",
+      "description": "Review a GitHub repository and return the top issues, quick wins, and next commits.",
+      "recommended_lane": "standard",
+      "keywords": ["repo", "github", "readme", "portfolio", "triage", "audit"],
+      "deliverable_template": "services/repo-triage.md",
+      "outputs": ["top_issues", "quick_wins", "commit_plan", "risk_notes"],
+      "enabled": true
+    },
+    {
+      "slug": "actions-debug",
+      "name": "GitHub Actions Debug Sprint",
+      "description": "Diagnose a failing GitHub Actions workflow and produce corrected YAML or a PR-ready fix plan.",
+      "recommended_lane": "priority",
+      "keywords": ["actions", "workflow", "ci", "cd", "yaml", "lint", "codeql", "trivy", "gitleaks"],
+      "deliverable_template": "services/actions-debug.md",
+      "outputs": ["root_cause", "fixed_yaml", "validation_steps", "pr_summary"],
+      "enabled": true
+    },
+    {
+      "slug": "devsecops-hardening",
+      "name": "DevSecOps Hardening Pass",
+      "description": "Review CI, security scanning, dependency hygiene, branch protection, and operational guardrails.",
+      "recommended_lane": "ultra",
+      "keywords": ["security", "devsecops", "hardening", "dependabot", "branch protection", "slsa", "scanner"],
+      "deliverable_template": "services/devsecops-hardening.md",
+      "outputs": ["security_findings", "workflow_patch_plan", "policy_checklist", "risk_register"],
+      "enabled": true
+    },
+    {
+      "slug": "openclaw-setup",
+      "name": "OpenClaw / Moltgate Setup Help",
+      "description": "Help configure OpenClaw, Moltgate paid lanes, polling workflows, and revenue delivery operations.",
+      "recommended_lane": "priority",
+      "keywords": ["openclaw", "moltgate", "paid lane", "poll", "agent", "revenue engine"],
+      "deliverable_template": "services/openclaw-setup.md",
+      "outputs": ["setup_checklist", "env_validation", "lane_mapping", "next_actions"],
+      "enabled": true
+    },
+    {
+      "slug": "ai-roadmap",
+      "name": "AI Automation Roadmap",
+      "description": "Turn a raw automation idea into an agent workflow, repo structure, and implementation roadmap.",
+      "recommended_lane": "standard",
+      "keywords": ["ai", "agent", "automation", "roadmap", "mcp", "workflow"],
+      "deliverable_template": "services/ai-roadmap.md",
+      "outputs": ["agent_design", "repo_structure", "milestones", "risk_controls"],
+      "enabled": true
+    }
+  ]
+}
