@@ -26,8 +26,19 @@ jobs:
   publish-gist:
     name: Publish AI runbook to Gist
     runs-on: ubuntu-latest
-    if: ${{ secrets.GIST_TOKEN != '' }}
     steps:
+      - name: Detect gist token
+        id: gist-token
+        shell: bash
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          if [ -n "$GIST_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -71,6 +82,7 @@ jobs:
             > artifacts/gist-payload.json
 
       - name: Create private gist
+        if: steps.gist-token.outputs.available == 'true'
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
@@ -81,17 +93,14 @@ jobs:
             https://api.github.com/gists \
             -d @artifacts/gist-payload.json
 
+      - name: Explain missing token
+        if: steps.gist-token.outputs.available == 'false'
+        run: |
+          echo "GIST_TOKEN is not configured. Add a fine-scoped token with gist permission to publish private gists."
+
       - name: Upload local payload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ai-runbook-gist-payload
           path: artifacts/
-
-  missing-token:
-    name: Explain missing token
-    runs-on: ubuntu-latest
-    if: ${{ secrets.GIST_TOKEN == '' }}
-    steps:
-      - name: Explain skipped publish
-        run: |
-          echo "GIST_TOKEN is not configured. Add a fine-scoped token with gist permission to publish private gists."
