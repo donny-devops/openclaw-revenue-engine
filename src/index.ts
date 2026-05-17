@@ -9,6 +9,7 @@ import { createLogger, format, transports } from 'winston';
 
 import { loadAppConfig } from './config/app';
 import { agentsRouter } from './routes/agents';
+import { mcpRouter } from './routes/mcp';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 
@@ -75,6 +76,7 @@ function createApp(config = appConfig): Application {
   );
   app.use(express.json({ limit: config.jsonBodyLimit }));
   app.use('/agents', agentsRouter);
+  app.use('/mcp', mcpRouter);
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({
@@ -93,6 +95,7 @@ function createApp(config = appConfig): Application {
         stripeWebhook: 'lazy-configured',
         githubWebhook: 'lazy-configured',
         agents: 'enabled',
+        mcp: 'inventory-only',
       },
     });
   });
@@ -104,6 +107,7 @@ function createApp(config = appConfig): Application {
       docs: '/health',
       readiness: '/ready',
       agents: '/agents',
+      mcp: '/mcp/servers',
     });
   });
 
