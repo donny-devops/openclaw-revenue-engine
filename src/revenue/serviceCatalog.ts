@@ -25,10 +25,20 @@ export const getService = (slug: string): ServiceConfig => {
   return service;
 };
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const keywordMatches = (keyword: string, haystack: string): boolean => {
+  const normalizedKeyword = keyword.toLowerCase().trim();
+  if (normalizedKeyword.length <= 2) {
+    return new RegExp(`(^|\\W)${escapeRegExp(normalizedKeyword)}($|\\W)`, 'i').test(haystack);
+  }
+  return haystack.includes(normalizedKeyword);
+};
+
 const keywordScore = (service: ServiceConfig, haystack: string): number => {
   return service.keywords.reduce((score, keyword) => {
-    const normalizedKeyword = keyword.toLowerCase();
-    return haystack.includes(normalizedKeyword) ? score + normalizedKeyword.length : score;
+    const normalizedKeyword = keyword.toLowerCase().trim();
+    return keywordMatches(normalizedKeyword, haystack) ? score + normalizedKeyword.length : score;
   }, 0);
 };
 
@@ -55,6 +65,8 @@ const summarizeInput = (input: PaidRequestInput): string => {
   return text.length > 280 ? `${text.slice(0, 277)}...` : text;
 };
 
+const inputLength = (input: PaidRequestInput): number => `${input.title ?? ''}\n${input.body}`.length;
+
 export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequest => {
   if (!input.body.trim()) {
     throw new Error('Paid request body is required');
@@ -63,6 +75,10 @@ export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequ
   const openclaw = loadOpenClawConfig();
   const service = inferService(input);
   const lane = inferLane(input, service);
+  if (inputLength(input) > lane.max_input_chars) {
+    throw new Error(`Paid request exceeds ${lane.slug} lane max_input_chars limit`);
+  }
+
   const labels = [
     ...openclaw.routing.issue_labels,
     ...(openclaw.routing.priority_labels[lane.slug] ?? []),
