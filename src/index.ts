@@ -19,91 +19,92 @@ const logger = createLogger({
   transports: [new transports.Console()],
 });
 
-const app: Application = express();
-const PORT = process.env.PORT ?? 3000;
+function createApp(): Application {
+  const app: Application = express();
 
-const globalLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-});
-
-const webhookLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many webhook requests.' },
-});
-
-app.post(
-  '/webhooks/stripe',
-  webhookLimiter,
-  express.raw({ type: 'application/json', limit: '1mb' }),
-  stripeWebhookHandler
-);
-
-app.post(
-  '/webhooks/github',
-  webhookLimiter,
-  express.raw({ type: 'application/json', limit: '1mb' }),
-  githubWebhookHandler
-);
-
-app.use(globalLimiter);
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-  credentials: process.env.CORS_CREDENTIALS === 'true',
-}));
-app.use(express.json());
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    name: 'openclaw-revenue-engine',
-    version: process.env.npm_package_version ?? '1.0.0',
-    docs: '/health',
-  });
-});
-
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' });
-});
-
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  const status =
-    (err as { status?: number; statusCode?: number }).status ??
-    (err as { status?: number; statusCode?: number }).statusCode ??
-    500;
-
-  logger.error('Unhandled error', {
-    message: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    status,
+  const globalLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
   });
 
-  if (status === 413) {
-    res.status(413).json({ error: 'Payload Too Large' });
-    return;
-  }
-  if (status >= 400 && status < 500) {
-    res.status(status).json({ error: err.message || 'Bad Request' });
-    return;
-  }
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+  const webhookLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many webhook requests.' },
+  });
 
-app.listen(PORT, () => {
-  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
-});
+  app.post(
+    '/webhooks/stripe',
+    webhookLimiter,
+    express.raw({ type: 'application/json', limit: '1mb' }),
+    stripeWebhookHandler
+  );
 
-export { logger };
+  app.post(
+    '/webhooks/github',
+    webhookLimiter,
+    express.raw({ type: 'application/json', limit: '1mb' }),
+    githubWebhookHandler
+  );
+
+  app.use(globalLimiter);
+  app.use(helmet());
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    credentials: process.env.CORS_CREDENTIALS === 'true',
+  }));
+  app.use(express.json());
+
+  app.get('/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({
+      name: 'openclaw-revenue-engine',
+      version: process.env.npm_package_version ?? '1.0.0',
+      docs: '/health',
+    });
+  });
+
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found' });
+  });
+
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    const status =
+      (err as { status?: number; statusCode?: number }).status ??
+      (err as { status?: number; statusCode?: number }).statusCode ??
+      500;
+
+    logger.error('Unhandled error', {
+      message: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      status,
+    });
+
+    if (status === 413) {
+      res.status(413).json({ error: 'Payload Too Large' });
+      return;
+    }
+    if (status >= 400 && status < 500) {
+      res.status(status).json({ error: err.message || 'Bad Request' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal Server Error' });
+  });
+
+  return app;
+}
+
+const app = createApp();
+
+export { createApp, logger };
 export default app;
