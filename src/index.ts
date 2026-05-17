@@ -1,109 +1,154 @@
 import 'dotenv/config';
 
-import express, { Application, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import cors from 'cors';
-import helmet from 'helmet';
+import express, { Application, NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import { createLogger, format, transports } from 'winston';
 
-import { stripeWebhookHandler } from './webhooks/stripe.webhook';
+import { loadAppConfig } from './config/app';
+import { agentsRouter } from './routes/agents';
+import { mcpRouter } from './routes/mcp';
+import { reviewsRouter } from './routes/reviews';
 import { githubWebhookHandler } from './webhooks/github.webhook';
+import { stripeWebhookHandler } from './webhooks/stripe.webhook';
+
+const appConfig = loadAppConfig();
 
 const logger = createLogger({
-  level: process.env.LOG_LEVEL ?? 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.errors({ stack: true }),
-    format.json()
-  ),
+  level: appConfig.logLevel,
+  format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
   transports: [new transports.Console()],
 });
 
-const app: Application = express();
-const PORT = process.env.PORT ?? 3000;
+function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const inboundRequestId = req.header('x-request-id');
+  const requestId = inboundRequestId && inboundRequestId.trim() ? inboundRequestId : crypto.randomUUID();
 
-const globalLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-});
+  res.setHeader('x-request-id', requestId);
+  res.locals.requestId = requestId;
+  next();
+}
 
-const webhookLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many webhook requests.' },
-});
+function createApp(config = appConfig): Application {
+  const app: Application = express();
 
-app.post(
-  '/webhooks/stripe',
-  webhookLimiter,
-  express.raw({ type: 'application/json', limit: '1mb' }),
-  stripeWebhookHandler
-);
-
-app.post(
-  '/webhooks/github',
-  webhookLimiter,
-  express.raw({ type: 'application/json', limit: '1mb' }),
-  githubWebhookHandler
-);
-
-app.use(globalLimiter);
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-  credentials: process.env.CORS_CREDENTIALS === 'true',
-}));
-app.use(express.json());
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    name: 'openclaw-revenue-engine',
-    version: process.env.npm_package_version ?? '1.0.0',
-    docs: '/health',
-  });
-});
-
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' });
-});
-
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  const status =
-    (err as { status?: number; statusCode?: number }).status ??
-    (err as { status?: number; statusCode?: number }).statusCode ??
-    500;
-
-  logger.error('Unhandled error', {
-    message: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    status,
+  const globalLimiter = rateLimit({
+    windowMs: config.globalRateLimit.windowMs,
+    max: config.globalRateLimit.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
   });
 
-  if (status === 413) {
-    res.status(413).json({ error: 'Payload Too Large' });
-    return;
-  }
-  if (status >= 400 && status < 500) {
-    res.status(status).json({ error: err.message || 'Bad Request' });
-    return;
-  }
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+  const webhookLimiter = rateLimit({
+    windowMs: config.webhookRateLimit.windowMs,
+    max: config.webhookRateLimit.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many webhook requests.' },
+  });
 
-app.listen(PORT, () => {
-  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
-});
+  app.disable('x-powered-by');
+  app.use(requestIdMiddleware);
 
-export { logger };
+  app.post(
+    '/webhooks/stripe',
+    webhookLimiter,
+    express.raw({ type: 'application/json', limit: config.jsonBodyLimit }),
+    stripeWebhookHandler
+  );
+
+  app.post(
+    '/webhooks/github',
+    webhookLimiter,
+    express.raw({ type: 'application/json', limit: config.jsonBodyLimit }),
+    githubWebhookHandler
+  );
+
+  app.use(globalLimiter);
+  app.use(helmet());
+  app.use(
+    cors({
+      origin: config.corsOrigin,
+      credentials: config.corsCredentials,
+    })
+  );
+  app.use(express.json({ limit: config.jsonBodyLimit }));
+  app.use('/agents', agentsRouter);
+  app.use('/mcp', mcpRouter);
+  app.use('/reviews', reviewsRouter);
+
+  app.get('/health', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: config.serviceName,
+      version: config.version,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.get('/ready', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ready',
+      service: config.serviceName,
+      dependencies: {
+        stripeWebhook: 'lazy-configured',
+        githubWebhook: 'lazy-configured',
+        agents: 'enabled',
+        mcp: 'inventory-only',
+        reviews: 'enabled',
+      },
+    });
+  });
+
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({
+      name: config.serviceName,
+      version: config.version,
+      docs: '/health',
+      readiness: '/ready',
+      agents: '/agents',
+      mcp: '/mcp/servers',
+      reviews: '/reviews',
+    });
+  });
+
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found', requestId: res.locals.requestId });
+  });
+
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    const status =
+      (err as { status?: number; statusCode?: number }).status ??
+      (err as { status?: number; statusCode?: number }).statusCode ??
+      500;
+
+    logger.error('Unhandled error', {
+      message: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      status,
+      requestId: res.locals.requestId,
+    });
+
+    if (status === 413) {
+      res.status(413).json({ error: 'Payload Too Large', requestId: res.locals.requestId });
+      return;
+    }
+    if (status >= 400 && status < 500) {
+      res.status(status).json({ error: err.message || 'Bad Request', requestId: res.locals.requestId });
+      return;
+    }
+    res.status(500).json({ error: 'Internal Server Error', requestId: res.locals.requestId });
+  });
+
+  return app;
+}
+
+const app = createApp();
+
+export { appConfig, createApp, logger };
 export default app;
