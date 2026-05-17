@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "default_profile": "reasoning_default",
+  "profiles": {
+    "reasoning_default": {
+      "purpose": "General operational reasoning, anomaly summaries, and runbook drafting.",
+      "preferred_model_family": "reasoning",
+      "temperature": 0.2,
+      "max_output_tokens": 1200,
+      "requires_citations": false,
+      "human_review_required": false
+    },
+    "compliance_strict": {
+      "purpose": "Privacy, payment, security, and external-delivery review.",
+      "preferred_model_family": "reasoning",
+      "temperature": 0,
+      "max_output_tokens": 900,
+      "requires_citations": true,
+      "human_review_required": true
+    },
+    "fast_classifier": {
+      "purpose": "Low-risk event classification and routing.",
+      "preferred_model_family": "small_fast",
+      "temperature": 0,
+      "max_output_tokens": 300,
+      "requires_citations": false,
+      "human_review_required": false
+    }
+  },
+  "routing_rules": [
+    {
+      "match": "refund|chargeback|payment dispute|customer impact",
+      "profile": "compliance_strict"
+    },
+    {
+      "match": "webhook event classification|health check|routing",
+      "profile": "fast_classifier"
+    }
+  ]
+}
