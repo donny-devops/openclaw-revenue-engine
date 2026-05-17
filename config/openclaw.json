@@ -3,7 +3,7 @@
   "engine": {
     "name": "openclaw-revenue-engine",
     "mode": "operator_review",
-    "default_lane": "standard",
+    "default_lane": "detailed-request",
     "default_service": "repo-triage",
     "delivery_policy": "draft_then_human_review"
   },
@@ -12,10 +12,9 @@
     "poll_workflow": "Revenue Engine - Poll",
     "issue_labels": ["moltgate", "paid-request", "needs-delivery"],
     "priority_labels": {
-      "micro": ["lane:micro"],
-      "standard": ["lane:standard"],
-      "priority": ["lane:priority", "priority"],
-      "ultra": ["lane:ultra", "priority", "human-review"]
+      "small-request": ["lane:small-request"],
+      "detailed-request": ["lane:detailed-request"],
+      "real-offer": ["lane:real-offer", "priority", "human-review"]
     }
   },
   "guardrails": {
