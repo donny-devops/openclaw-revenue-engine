@@ -28,7 +28,7 @@ const loadConfigModule = (): typeof import('../../src/revenue/config') => {
   jest.resetModules();
   let configModule!: typeof import('../../src/revenue/config');
   jest.isolateModules(() => {
-    configModule = require('../../src/revenue/config') as typeof import('../../src/revenue/config');
+    configModule = jest.requireActual('../../src/revenue/config') as typeof import('../../src/revenue/config');
   });
   return configModule;
 };
@@ -90,7 +90,7 @@ describe('revenue config validation', () => {
     withMockedConfigFile('/config/openclaw.json', {
       engine: { default_lane: 'detailed-request', default_service: 'repo-triage' },
       routing: { issue_labels: ['moltgate'], priority_labels: null },
-      guardrails: { require_human_review: true },
+      guardrails: { require_human_review: 'yes' },
     }, () => {
       const config = loadConfigModule();
       expect(() => config.loadOpenClawConfig()).toThrow('Invalid OpenClaw config: engine, routing, and guardrails are required');
