@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "operator_review",
+  "default_orchestrator": "revenue-intake-orchestrator",
+  "capabilities": {
+    "multimodal": {
+      "enabled": true,
+      "supported_inputs": ["text", "image", "document", "log_excerpt", "repository_url"],
+      "policy": "summarize_then_human_review"
+    },
+    "rag": {
+      "enabled": true,
+      "vector_databases": ["pgvector", "qdrant", "pinecone", "weaviate"],
+      "default_vector_database": "pgvector",
+      "embedding_provider": "huggingface",
+      "retrieval_policy": "cite_sources_and_preserve_scope"
+    },
+    "mcp": {
+      "enabled": true,
+      "gateway_config": "config/mcp-gateway.json",
+      "servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server", "cloud-control-mcp-server"],
+      "policy": "least_privilege_tool_access"
+    },
+    "continuous_optimization": {
+      "enabled": true,
+      "feedback_sources": ["conversion_rate", "campaign_performance", "landing_page_events", "affiliate_lead_quality"],
+      "policy": "recommend_copy_and_funnel_changes_before_apply"
+    },
+    "dynamic_scaling_and_throttling": {
+      "enabled": true,
+      "queue_strategy": "classify_prioritize_then_process_async",
+      "backpressure_policy": "protect_core_revenue_engine_first"
+    },
+    "proactive_compliance_audits": {
+      "enabled": true,
+      "audit_targets": ["active_funnels", "high_traffic_campaigns", "affiliate_network_terms", "ad_platform_terms"],
+      "policy": "flag_live_campaign_drift_for_operator_review"
+    }
+  },
+  "agents": [
+    {
+      "slug": "revenue-intake-orchestrator",
+      "name": "Revenue Intake Orchestrator",
+      "type": "orchestrator",
+      "purpose": "Classify Moltgate requests into paid lanes, services, agent tasks, and operator checklists.",
+      "inputs": ["customer_request", "lane_catalog", "service_catalog"],
+      "outputs": ["lane", "service", "labels", "agent_plan", "delivery_checklist"],
+      "mcp_servers": ["github-mcp-server", "postgres-mcp-server"],
+      "mcp_tools": ["repos.get", "issues.create", "postgres.query_readonly", "pgvector.search"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "config-agent",
+      "name": "Configuration Agent",
+      "type": "config",
+      "purpose": "Validate secrets, workflows, packages, releases, and cloud deployment configuration.",
+      "inputs": ["repository_config", "workflow_logs", "environment_matrix"],
+      "outputs": ["config_findings", "required_secrets", "remediation_plan"],
+      "mcp_servers": ["github-mcp-server", "cloud-control-mcp-server"],
+      "mcp_tools": ["actions.runs.read", "actions.logs.read", "terraform.plan", "kubernetes.diff"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "swe-remediation-agent",
+      "name": "SWE Remediation Agent",
+      "type": "software_engineering",
+      "purpose": "Draft patch plans, tests, validation commands, and pull request summaries for paid debug requests.",
+      "inputs": ["issue_context", "repository_files", "ci_logs"],
+      "outputs": ["root_cause", "solution_patch", "tests", "pull_request_summary"],
+      "mcp_servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server"],
+      "mcp_tools": ["repos.contents.read", "repos.contents.write", "pulls.create", "actions.logs.read", "pgvector.search"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "data-synthesis-agent",
+      "name": "Data Synthesis Agent",
+      "type": "analytics",
+      "purpose": "Analyze conversion, campaign, funnel, and lead-quality telemetry for optimization recommendations.",
+      "inputs": ["conversion_rate", "campaign_performance", "landing_page_events", "affiliate_lead_quality"],
+      "outputs": ["performance_summary", "optimization_signal", "experiment_recommendations"],
+      "mcp_servers": ["postgres-mcp-server"],
+      "mcp_tools": ["postgres.query_readonly", "pgvector.search"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "content-outreach-agent",
+      "name": "Content and Outreach Agent",
+      "type": "content",
+      "purpose": "Draft campaign copy and landing page experiments based on performance telemetry.",
+      "inputs": ["optimization_signal", "brand_rules", "campaign_goal"],
+      "outputs": ["ad_copy_variants", "landing_page_edits", "experiment_plan"],
+      "mcp_servers": ["filesystem-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["files.read", "files.write", "repos.contents.write", "pulls.create"],
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "compliance-quality-agent",
+      "name": "Compliance and Quality Agent",
+      "type": "compliance",
+      "purpose": "Audit live funnels and generated content against affiliate and ad platform policy constraints.",
+      "inputs": ["campaign_snapshot", "affiliate_policy", "ad_platform_terms", "draft_content"],
+      "outputs": ["compliance_flags", "required_edits", "approval_status"],
+      "mcp_servers": ["filesystem-mcp-server", "postgres-mcp-server", "github-mcp-server"],
+      "mcp_tools": ["files.read", "postgres.query_readonly", "pgvector.search", "issues.create"],
+      "human_review_required": true,
+      "enabled": true
+    }
+  ]
+}
