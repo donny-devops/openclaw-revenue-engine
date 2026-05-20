@@ -1,0 +1,89 @@
+---
+name: Zeek Network Analysis
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/zeek.yml"
+      - "security/zeek/**"
+      - "security/pcaps/**"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/zeek.yml"
+      - "security/zeek/**"
+      - "security/pcaps/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zeek-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Zeek PCAP analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Locate PCAP fixtures
+        id: pcaps
+        shell: bash
+        run: |
+          mkdir -p security/pcaps zeek-output
+          find security/pcaps -type f \( -name "*.pcap" -o -name "*.pcapng" \) | sort > zeek-output/pcaps.txt
+          if [ -s zeek-output/pcaps.txt ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Zeek against PCAP fixtures
+        if: steps.pcaps.outputs.found == 'true'
+        shell: bash
+        run: |
+          while IFS= read -r pcap; do
+            base="$(basename "$pcap")"
+            out_dir="zeek-output/${base}"
+            mkdir -p "$out_dir"
+            docker run --rm \
+              -v "$PWD:/workspace" \
+              -w "/workspace/${out_dir}" \
+              zeek/zeek:latest \
+              zeek -r "/workspace/${pcap}" local
+          done < zeek-output/pcaps.txt
+
+      - name: Skip Zeek when no PCAP fixtures exist
+        if: steps.pcaps.outputs.found != 'true'
+        run: echo "No PCAP or PCAPNG fixtures found under security/pcaps; skipping Zeek analysis."
+
+      - name: Summarize Zeek outputs
+        shell: bash
+        run: |
+          {
+            echo "## Zeek Network Analysis"
+            echo
+            if [ -s zeek-output/pcaps.txt ]; then
+              echo "Analyzed packet captures:"
+              sed 's/^/- /' zeek-output/pcaps.txt
+              echo
+              echo "Generated logs:"
+              find zeek-output -type f -name "*.log" | sort | sed 's/^/- /'
+            else
+              echo "No packet captures were analyzed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Zeek logs
+        if: steps.pcaps.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeek-network-logs
+          path: zeek-output
+          if-no-files-found: ignore
