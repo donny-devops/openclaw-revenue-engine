@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "operator_review",
+  "integrations": [
+    {
+      "slug": "owasp-zap-baseline",
+      "name": "OWASP ZAP Baseline",
+      "category": "dast",
+      "purpose": "Run passive web application security checks against an operator-supplied target URL.",
+      "workflow": ".github/workflows/zap.yml",
+      "required_secrets": [],
+      "outputs": ["zap_report", "alerts", "operator_review_notes"],
+      "auto_block_release": false,
+      "enabled": true
+    },
+    {
+      "slug": "zeek-network-analysis",
+      "name": "Zeek Network Analysis",
+      "category": "network_security_monitoring",
+      "purpose": "Analyze optional PCAP or PCAPNG fixtures and produce Zeek logs for review.",
+      "workflow": ".github/workflows/zeek.yml",
+      "required_secrets": [],
+      "inputs": ["security/pcaps"],
+      "outputs": ["conn_log", "dns_log", "http_log", "ssl_log", "notice_log"],
+      "auto_block_release": false,
+      "enabled": true
+    },
+    {
+      "slug": "greenbone-community-edition",
+      "name": "Greenbone Community Edition",
+      "category": "vulnerability_assessment",
+      "purpose": "Track planned authenticated and unauthenticated vulnerability assessment operations.",
+      "required_secrets": ["GREENBONE_URL", "GREENBONE_USERNAME", "GREENBONE_PASSWORD"],
+      "outputs": ["scan_summary", "risk_register", "remediation_plan"],
+      "auto_block_release": false,
+      "enabled": false
+    },
+    {
+      "slug": "splunk-log-ingestion",
+      "name": "Splunk Log Ingestion",
+      "category": "siem_observability",
+      "purpose": "Forward curated security and workflow telemetry to Splunk-compatible HTTP Event Collector endpoints.",
+      "required_secrets": ["SPLUNK_HEC_URL", "SPLUNK_HEC_TOKEN"],
+      "outputs": ["security_events", "workflow_events", "agent_audit_events"],
+      "auto_block_release": false,
+      "enabled": false
+    }
+  ],
+  "guardrails": {
+    "manual_dast_targets_only": true,
+    "no_secret_echo": true,
+    "no_credentialed_scans_without_operator_approval": true,
+    "packet_capture_fixtures_only": true,
+    "external_log_forwarding_disabled_by_default": true
+  }
+}
