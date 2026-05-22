@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Lint, type-check, test, audit, build (${{ matrix.node-version }})
+    name: Lint, type-check, unit, audit, build (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,8 +41,8 @@ jobs:
       - name: Type check
         run: npm run type-check --if-present
 
-      - name: Test
-        run: npm test --if-present
+      - name: Unit tests
+        run: npm run test:unit --if-present
 
       - name: Dependency audit
         run: npm audit --audit-level=high
