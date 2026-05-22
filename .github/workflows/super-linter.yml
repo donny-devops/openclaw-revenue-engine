@@ -37,7 +37,9 @@ jobs:
           # Repo style is single-quote with 2-space indent.
           VALIDATE_JAVASCRIPT_PRETTIER: false
           VALIDATE_TYPESCRIPT_PRETTIER: false
-          # JSON and YAML are covered by focused workflows/tools.
+          # Docs, JSON, and YAML are covered by focused review/checks.
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
           VALIDATE_JSON_PRETTIER: false
           VALIDATE_YAML: false
           VALIDATE_YAML_PRETTIER: false
