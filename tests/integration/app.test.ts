@@ -26,21 +26,23 @@ import app from '../../src/index';
 describe('GET /', () => {
   it('returns 200 with app metadata', async () => {
     const res = await request(app).get('/');
+    const body = res.body as { name: string; version: string; docs: string };
 
     expect(res.status).toBe(200);
-    expect(res.body.name).toBe('openclaw-revenue-engine');
-    expect(typeof res.body.version).toBe('string');
-    expect(res.body.docs).toBe('/health');
+    expect(body.name).toBe('openclaw-revenue-engine');
+    expect(typeof body.version).toBe('string');
+    expect(body.docs).toBe('/health');
   });
 });
 
 describe('GET /health', () => {
   it('returns 200 with { status: "ok", timestamp }', async () => {
     const res = await request(app).get('/health');
+    const body = res.body as { status: string; timestamp: string };
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
-    expect(typeof res.body.timestamp).toBe('string');
+    expect(body.status).toBe('ok');
+    expect(typeof body.timestamp).toBe('string');
   });
 
   it('timestamp is a valid ISO 8601 string', async () => {
@@ -85,9 +87,9 @@ describe('POST /webhooks/stripe', () => {
 
     // Should hit the handler, which checks for stripe-signature
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({
-      error: expect.stringContaining('stripe-signature'),
-    });
+    const body = res.body as { error: string };
+    expect(typeof body.error).toBe('string');
+    expect(body.error).toContain('stripe-signature');
   });
 
   it('respects webhook rate limiter (max 30 / 60s)', async () => {
@@ -109,8 +111,9 @@ describe('POST /webhooks/github', () => {
       .send('{}');
 
     expect(res.status).toBe(400);
-    expect(typeof res.body.error).toBe('string');
-    expect(res.body.error).toContain('Signature');
+    const body = res.body as { error: string };
+    expect(typeof body.error).toBe('string');
+    expect(body.error).toContain('Signature');
   });
 
   it('respects webhook rate limiter', async () => {
