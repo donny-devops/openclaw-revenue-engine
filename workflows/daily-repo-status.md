@@ -2,100 +2,146 @@
 
 ## Purpose
 
-Provide a quick, repeatable daily health check for `openclaw-revenue-engine` so maintainers can surface blockers early and keep delivery predictable.
+Run a quick daily health check for `openclaw-revenue-engine`.
+
+Use this workflow to surface blockers early, keep reviews moving, and make
+repository operations predictable.
 
 ## Frequency
 
-- **Every workday** (recommended: before team standup)
-- **Owner:** rotating on-call maintainer or designated repo steward
+- Cadence: every workday before standup.
+- Owner: rotating on-call maintainer or repo steward.
+- Backup: another maintainer when the owner is unavailable.
 
 ## Daily Checklist
 
-- [ ] Review open pull requests for review status, requested changes, and blockers.
-- [ ] Review recent commits and active branch activity.
-- [ ] Verify CI/CD status and identify failing required checks.
-- [ ] Triage newly opened issues and re-check high-priority open issues.
+- [ ] Review open pull requests.
+- [ ] Review recent commits and branch activity.
+- [ ] Check CI/CD status.
+- [ ] Triage new and high-priority issues.
 - [ ] Review dependency and security alerts.
-- [ ] Identify stale branches/PRs and decide follow-up action.
+- [ ] Identify stale branches and pull requests.
 
-### 1) Open Pull Requests
+## Open Pull Requests
 
-| Check | What to verify | Action if blocked |
-|---|---|---|
-| Review state | Pending review, approved, or changes requested | Assign reviewer or re-request review |
-| Merge readiness | Required checks passing, no conflicts | Ask author to rebase/fix checks |
-| Blockers | Missing context, unresolved comments, failing tests | Comment with explicit unblock steps |
+Check each open pull request for:
 
-### 2) Recent Commits & Branch Activity
+- Review state: pending, approved, or changes requested.
+- Merge readiness: checks, conflicts, and required approvals.
+- Blockers: missing context, unresolved comments, or failing tests.
 
-| Check | What to verify | Action |
-|---|---|---|
-| Default branch activity | New commits in last 24h | Confirm deployments/releases are expected |
-| Active feature branches | Long-running branches without updates | Nudge owner or archive if obsolete |
-| Commit quality | Clear commit scope/messages | Ask for follow-up cleanup in PR comments |
+Follow-up actions:
 
-### 3) CI/CD Pipeline Status
+- Assign or re-request reviewers.
+- Ask the author to rebase or fix failing checks.
+- Comment with clear unblock steps when a PR is stuck.
 
-| Check | What to verify | Action |
-|---|---|---|
-| Required CI checks | `CI`, tests, lint/type-check/build | Triage failing jobs and assign owner |
-| Security checks | CodeQL / dependency / secret scan status | Open issue for unresolved high-risk findings |
-| Workflow health | Disabled, flaky, or repeatedly failing workflows | Create a workflow-fix issue and prioritize |
+## Recent Commits And Branch Activity
 
-### 4) Open Issues (Triaged or Newly Filed)
+Review recent activity for:
 
-| Check | What to verify | Action |
-|---|---|---|
-| New issues | Repro details, labels, severity | Add labels + assign milestone/owner |
-| Existing open issues | Priority still accurate | Re-prioritize and update status comment |
-| Incident/security items | Time-sensitive items surfaced | Escalate in standup/Slack immediately |
+- New commits on the default branch in the last 24 hours.
+- Active feature branches that have not moved recently.
+- Commit messages that need clearer scope or context.
 
-### 5) Dependency / Security Alerts
+Follow-up actions:
 
-| Check | What to verify | Action |
-|---|---|---|
-| Dependabot alerts | High/critical package alerts | Open/merge update PRs quickly |
-| Code scanning alerts | New or reopened alerts | Triage false positives vs required fixes |
-| Secret exposure alerts | Any leaked key/token warnings | Rotate secrets and remediate immediately |
+- Confirm default-branch changes were expected.
+- Nudge owners of long-running branches.
+- Archive obsolete branches after confirming they are safe to remove.
 
-### 6) Stale Branches / PRs
+## CI/CD Pipeline Status
 
-| Check | What to verify | Action |
-|---|---|---|
-| Stale PRs | No update for 7+ days | Ping owner; close if abandoned |
-| Stale branches | Old branches not linked to active PR | Delete after confirming safe to remove |
-| Draft PR drift | Drafts with unresolved TODOs | Request plan/date or archive |
+Check workflow health for:
+
+- Required CI checks.
+- Lint, type-check, unit test, audit, and build jobs.
+- Security checks such as CodeQL, dependency review, and secret scans.
+- Disabled, flaky, or repeatedly failing workflows.
+
+Follow-up actions:
+
+- Assign an owner for failing required checks.
+- Open an issue for unresolved high-risk findings.
+- Prioritize fixes for flaky or broken workflows.
+
+## Open Issues
+
+Review issues for:
+
+- New reports that need labels, severity, or an owner.
+- Existing issues whose priority may have changed.
+- Incident or security items that need escalation.
+
+Follow-up actions:
+
+- Add labels and owners.
+- Update stale issue status comments.
+- Escalate time-sensitive items in standup or Slack.
+
+## Dependency And Security Alerts
+
+Review security posture for:
+
+- Dependabot alerts.
+- Code scanning alerts.
+- Secret exposure alerts.
+- Open security pull requests.
+
+Follow-up actions:
+
+- Prioritize high and critical dependency alerts.
+- Triage false positives versus required fixes.
+- Rotate exposed secrets immediately.
+
+## Stale Branches And Pull Requests
+
+Check for stale work:
+
+- Pull requests with no update for seven or more days.
+- Branches not linked to active pull requests.
+- Draft pull requests with unresolved TODOs.
+
+Follow-up actions:
+
+- Ping the owner.
+- Request a plan or target date.
+- Close or delete abandoned work after confirming it is safe.
 
 ## Reporting Guidance
 
-- Share a short update in **team standup**:
-  - PRs blocked
-  - CI/security failures
-  - priority issues needing help
-- Post async summary in **Slack** (or team channel) when standup is not available.
-- Use **GitHub Discussions** (or issue comments) for repo-level decisions and longer context.
+Share a short daily update in standup or Slack.
 
-Suggested daily update format:
+Suggested format:
 
-- `PRs:` 2 blocked, 4 in review
-- `CI:` 1 failing workflow (`CI` on `feature/x`)
-- `Issues:` 1 new high-priority bug triaged
-- `Security:` 0 critical alerts open
-- `Stale:` 3 PRs >7 days, owners notified
+- `PRs:` 2 blocked, 4 in review.
+- `CI:` 1 failing workflow on `feature/x`.
+- `Issues:` 1 high-priority bug triaged.
+- `Security:` 0 critical alerts open.
+- `Stale:` 3 old pull requests, owners notified.
 
-## Owner / Responsibility
+Use GitHub Discussions or issue comments for repo-level decisions that need
+longer context.
 
-| Role | Responsibility |
-|---|---|
-| Daily status owner | Run checklist, post summary, assign follow-ups |
-| PR authors | Resolve review comments and failing checks |
-| Reviewers/maintainers | Review promptly and escalate blockers |
-| Security owner (or maintainer) | Triage/resolve high-risk alerts |
+## Owner Responsibility
 
-## Notes / References
+The daily status owner should:
+
+- Run the checklist.
+- Post the summary.
+- Assign follow-up owners.
+- Escalate urgent blockers.
+
+Pull request authors should resolve review comments and failing checks.
+
+Reviewers and maintainers should review promptly and escalate blockers.
+
+The security owner should triage and resolve high-risk alerts.
+
+## Notes And References
 
 - Repository: `donny-devops/openclaw-revenue-engine`
-- Pull Requests: `https://github.com/donny-devops/openclaw-revenue-engine/pulls`
-- Issues: `https://github.com/donny-devops/openclaw-revenue-engine/issues`
-- Actions: `https://github.com/donny-devops/openclaw-revenue-engine/actions`
-- Security tab: `https://github.com/donny-devops/openclaw-revenue-engine/security`
+- Pull requests: repository Pull Requests tab
+- Issues: repository Issues tab
+- Actions: repository Actions tab
+- Security: repository Security tab
