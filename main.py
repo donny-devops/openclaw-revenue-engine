@@ -27,7 +27,7 @@ def main() -> int:
     args = parse_args()
 
     api_key = os.getenv("MOLTGATE_API_KEY", "")
-    base_url = os.getenv("MOLTGATE_BASE_URL", "https://moltgate.com")
+    base_url = os.getenv("MOLTGATE_BASE_URL", "https://moltgate.com").rstrip("/")
 
     if not api_key:
         print(
