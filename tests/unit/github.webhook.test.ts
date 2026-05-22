@@ -23,10 +23,13 @@ beforeAll(() => {
 // Lazy import — resolved after beforeAll sets env vars
 let githubWebhookHandler: (req: Request, res: Response) => void;
 
-beforeAll(async () => {
+beforeAll(() => {
   // Use isolateModules so the module picks up our test secret
-  await jest.isolateModules(async () => {
-    const mod = await import('../../src/webhooks/github.webhook');
+  jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('../../src/webhooks/github.webhook') as {
+      githubWebhookHandler: (req: Request, res: Response) => void;
+    };
     githubWebhookHandler = mod.githubWebhookHandler;
   });
 });
@@ -68,7 +71,8 @@ describe('githubWebhookHandler — missing headers', () => {
     githubWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Signature') });
+    expect(typeof (body as { error?: unknown }).error).toBe('string');
+    expect((body as { error: string }).error).toContain('Signature');
   });
 
   it('returns 400 when X-GitHub-Event is absent', () => {
@@ -82,7 +86,8 @@ describe('githubWebhookHandler — missing headers', () => {
     githubWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('Event') });
+    expect(typeof (body as { error?: unknown }).error).toBe('string');
+    expect((body as { error: string }).error).toContain('Event');
   });
 });
 
@@ -101,7 +106,8 @@ describe('githubWebhookHandler — signature verification', () => {
     githubWebhookHandler(req as Request, res as Response);
 
     expect(statusCode).toBe(401);
-    expect(body).toMatchObject({ error: expect.stringContaining('signature') });
+    expect(typeof (body as { error?: unknown }).error).toBe('string');
+    expect((body as { error: string }).error).toContain('signature');
   });
 
   it('returns 401 when signature length mismatches (timing-safe guard)', () => {
@@ -129,7 +135,7 @@ describe('githubWebhookHandler — signature verification', () => {
     githubWebhookHandler(req as Request, res as Response);
 
     expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'push' });
+    expect(body).toEqual(expect.objectContaining({ received: true, event: 'push' }));
   });
 });
 
@@ -147,7 +153,7 @@ describe('githubWebhookHandler — event routing', () => {
     githubWebhookHandler(req as Request, res as Response);
 
     expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'ping' });
+    expect(body).toEqual(expect.objectContaining({ received: true, event: 'ping' }));
   });
 
   it('handles push event and returns 200', () => {
@@ -162,7 +168,7 @@ describe('githubWebhookHandler — event routing', () => {
     githubWebhookHandler(req as Request, res as Response);
 
     expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true, event: 'push' });
+    expect(body).toEqual(expect.objectContaining({ received: true, event: 'push' }));
   });
 
   it('handles pull_request event and returns 200', () => {

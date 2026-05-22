@@ -11,10 +11,6 @@ import {
   InvoiceStatus,
   SubscriptionStatus,
   UsageMetricType,
-  type Tenant,
-  type Invoice,
-  type Subscription,
-  type UsageRecord,
   type EarningsSummary,
 } from '../../src/models';
 import {
@@ -74,15 +70,13 @@ describe('Tenant interface — makeTenant factory', () => {
   it('creates a valid default Tenant', () => {
     const tenant = makeTenant();
 
-    expect(tenant).toMatchObject({
-      id: expect.any(String),
-      name: expect.any(String),
-      email: expect.any(String),
-      billingPlan: BillingPlan.Pro,
-      stripeCustomerId: expect.any(String),
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
-    });
+    expect(typeof tenant.id).toBe('string');
+    expect(typeof tenant.name).toBe('string');
+    expect(typeof tenant.email).toBe('string');
+    expect(tenant.billingPlan).toBe(BillingPlan.Pro);
+    expect(typeof tenant.stripeCustomerId).toBe('string');
+    expect(tenant.createdAt).toBeInstanceOf(Date);
+    expect(tenant.updatedAt).toBeInstanceOf(Date);
   });
 
   it('allows overrides for all fields', () => {
@@ -107,21 +101,19 @@ describe('Invoice interface — makeInvoice factory', () => {
   it('creates a valid default Invoice', () => {
     const invoice = makeInvoice();
 
-    expect(invoice).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
-      stripeInvoiceId: expect.any(String),
-      status: InvoiceStatus.Paid,
-      amountDue: expect.any(Number),
-      amountPaid: expect.any(Number),
-      currency: expect.any(String),
-      periodStart: expect.any(Date),
-      periodEnd: expect.any(Date),
-      lineItems: expect.any(Array),
-      pdfUrl: null,
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
-    });
+    expect(typeof invoice.id).toBe('string');
+    expect(typeof invoice.tenantId).toBe('string');
+    expect(typeof invoice.stripeInvoiceId).toBe('string');
+    expect(invoice.status).toBe(InvoiceStatus.Paid);
+    expect(typeof invoice.amountDue).toBe('number');
+    expect(typeof invoice.amountPaid).toBe('number');
+    expect(typeof invoice.currency).toBe('string');
+    expect(invoice.periodStart).toBeInstanceOf(Date);
+    expect(invoice.periodEnd).toBeInstanceOf(Date);
+    expect(Array.isArray(invoice.lineItems)).toBe(true);
+    expect(invoice.pdfUrl).toBeNull();
+    expect(invoice.createdAt).toBeInstanceOf(Date);
+    expect(invoice.updatedAt).toBeInstanceOf(Date);
   });
 
   it('allows overrides for status and amounts', () => {
@@ -141,18 +133,16 @@ describe('Subscription interface — makeSubscription factory', () => {
   it('creates a valid default Subscription', () => {
     const sub = makeSubscription();
 
-    expect(sub).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
-      stripeSubscriptionId: expect.any(String),
-      plan: BillingPlan.Pro,
-      status: SubscriptionStatus.Active,
-      currentPeriodStart: expect.any(Date),
-      currentPeriodEnd: expect.any(Date),
-      cancelAtPeriodEnd: false,
-      createdAt: expect.any(Date),
-      updatedAt: expect.any(Date),
-    });
+    expect(typeof sub.id).toBe('string');
+    expect(typeof sub.tenantId).toBe('string');
+    expect(typeof sub.stripeSubscriptionId).toBe('string');
+    expect(sub.plan).toBe(BillingPlan.Pro);
+    expect(sub.status).toBe(SubscriptionStatus.Active);
+    expect(sub.currentPeriodStart).toBeInstanceOf(Date);
+    expect(sub.currentPeriodEnd).toBeInstanceOf(Date);
+    expect(sub.cancelAtPeriodEnd).toBe(false);
+    expect(sub.createdAt).toBeInstanceOf(Date);
+    expect(sub.updatedAt).toBeInstanceOf(Date);
   });
 
   it('allows overrides for status and plan', () => {
@@ -172,15 +162,13 @@ describe('UsageRecord interface — makeUsageRecord factory', () => {
   it('creates a valid default UsageRecord', () => {
     const usage = makeUsageRecord();
 
-    expect(usage).toMatchObject({
-      id: expect.any(String),
-      tenantId: expect.any(String),
-      metricType: UsageMetricType.ApiCall,
-      quantity: expect.any(Number),
-      unit: expect.any(String),
-      recordedAt: expect.any(Date),
-      metadata: expect.any(Object),
-    });
+    expect(typeof usage.id).toBe('string');
+    expect(typeof usage.tenantId).toBe('string');
+    expect(usage.metricType).toBe(UsageMetricType.ApiCall);
+    expect(typeof usage.quantity).toBe('number');
+    expect(typeof usage.unit).toBe('string');
+    expect(usage.recordedAt).toBeInstanceOf(Date);
+    expect(typeof usage.metadata).toBe('object');
   });
 
   it('allows overrides for metricType and quantity', () => {

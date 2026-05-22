@@ -71,7 +71,8 @@ describe('stripeWebhookHandler — missing stripe-signature header', () => {
     stripeWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
+    expect(typeof (body as { error?: unknown }).error).toBe('string');
+    expect((body as { error: string }).error).toContain('stripe-signature');
   });
 });
 
@@ -95,9 +96,8 @@ describe('stripeWebhookHandler — invalid signature', () => {
     stripeWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(400);
-    expect(body).toMatchObject({
-      error: expect.stringContaining('signature verification failed'),
-    });
+    expect(typeof (body as { error?: unknown }).error).toBe('string');
+    expect((body as { error: string }).error).toContain('signature verification failed');
     errorSpy.mockRestore();
   });
 });
@@ -165,7 +165,7 @@ describe('stripeWebhookHandler — supported event routing', () => {
       stripeWebhookHandler(req, res as Response);
 
       expect(statusCode).toBe(200);
-      expect(body).toMatchObject({ received: true, eventType });
+      expect(body).toEqual(expect.objectContaining({ received: true, eventType }));
     }
   );
 });
@@ -189,7 +189,7 @@ describe('stripeWebhookHandler — unhandled event type', () => {
     stripeWebhookHandler(req, res as Response);
 
     expect(statusCode).toBe(200);
-    expect(body).toMatchObject({ received: true });
+    expect(body).toEqual(expect.objectContaining({ received: true }));
     consoleSpy.mockRestore();
   });
 });

@@ -28,11 +28,9 @@ describe('GET /', () => {
     const res = await request(app).get('/');
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      name: 'openclaw-revenue-engine',
-      version: expect.any(String),
-      docs: '/health',
-    });
+    expect(res.body.name).toBe('openclaw-revenue-engine');
+    expect(typeof res.body.version).toBe('string');
+    expect(res.body.docs).toBe('/health');
   });
 });
 
@@ -41,17 +39,16 @@ describe('GET /health', () => {
     const res = await request(app).get('/health');
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      status: 'ok',
-      timestamp: expect.any(String),
-    });
+    expect(res.body.status).toBe('ok');
+    expect(typeof res.body.timestamp).toBe('string');
   });
 
   it('timestamp is a valid ISO 8601 string', async () => {
     const res = await request(app).get('/health');
-    const timestamp = new Date(res.body.timestamp as string);
+    const { timestamp } = res.body as { timestamp: string };
+    const parsed = new Date(timestamp);
 
-    expect(timestamp.toISOString()).toBe(res.body.timestamp);
+    expect(parsed.toISOString()).toBe(timestamp);
   });
 });
 
@@ -112,9 +109,8 @@ describe('POST /webhooks/github', () => {
       .send('{}');
 
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({
-      error: expect.stringContaining('Signature'),
-    });
+    expect(typeof res.body.error).toBe('string');
+    expect(res.body.error).toContain('Signature');
   });
 
   it('respects webhook rate limiter', async () => {
