@@ -83,10 +83,10 @@ Follow-up actions:
 
 Review security posture for:
 
-- Dependabot alerts.
-- Code scanning alerts.
-- Secret exposure alerts.
-- Open security pull requests.
+- [Dependabot alerts](https://github.com/donny-devops/openclaw-revenue-engine/security/dependabot).
+- [Code scanning alerts](https://github.com/donny-devops/openclaw-revenue-engine/security/code-scanning).
+- [Secret exposure alerts](https://github.com/donny-devops/openclaw-revenue-engine/security/secret-scanning).
+- [Open security pull requests](https://github.com/donny-devops/openclaw-revenue-engine/pulls?q=is%3Apr+label%3Asecurity+state%3Aopen).
 
 Follow-up actions:
 
@@ -141,7 +141,7 @@ The security owner should triage and resolve high-risk alerts.
 ## Notes And References
 
 - Repository: `donny-devops/openclaw-revenue-engine`
-- Pull requests: https://github.com/donny-devops/openclaw-revenue-engine/pulls
-- Issues: https://github.com/donny-devops/openclaw-revenue-engine/issues
-- Actions: https://github.com/donny-devops/openclaw-revenue-engine/actions
-- Security: https://github.com/donny-devops/openclaw-revenue-engine/security
+- [Pull requests](https://github.com/donny-devops/openclaw-revenue-engine/pulls)
+- [Issues](https://github.com/donny-devops/openclaw-revenue-engine/issues)
+- [Actions](https://github.com/donny-devops/openclaw-revenue-engine/actions)
+- [Security overview](https://github.com/donny-devops/openclaw-revenue-engine/security)
