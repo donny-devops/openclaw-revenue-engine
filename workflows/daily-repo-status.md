@@ -141,7 +141,7 @@ The security owner should triage and resolve high-risk alerts.
 ## Notes And References
 
 - Repository: `donny-devops/openclaw-revenue-engine`
-- Pull requests: repository Pull Requests tab
-- Issues: repository Issues tab
-- Actions: repository Actions tab
-- Security: repository Security tab
+- Pull requests: https://github.com/donny-devops/openclaw-revenue-engine/pulls
+- Issues: https://github.com/donny-devops/openclaw-revenue-engine/issues
+- Actions: https://github.com/donny-devops/openclaw-revenue-engine/actions
+- Security: https://github.com/donny-devops/openclaw-revenue-engine/security

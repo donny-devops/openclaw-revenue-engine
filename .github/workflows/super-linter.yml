@@ -1,4 +1,4 @@
-name: Super-Linter
+name: Super-Linter (Advisory)
 
 on:
   push:
@@ -13,15 +13,16 @@ permissions:
 
 jobs:
   lint:
-    name: Super-Linter
+    name: Super-Linter (advisory)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Super-Linter
+        # Advisory-only signal while the repository keeps linting requirements in CI.
         continue-on-error: true
         uses: super-linter/super-linter@v8.6.0
         env:
@@ -38,7 +39,7 @@ jobs:
           # Repo style is single-quote with 2-space indent.
           VALIDATE_JAVASCRIPT_PRETTIER: false
           VALIDATE_TYPESCRIPT_PRETTIER: false
-          # Docs, JSON, and YAML are covered by focused review/checks.
+          # Markdown/JSON/YAML checks are intentionally manual in this advisory workflow.
           VALIDATE_MARKDOWN: false
           VALIDATE_MARKDOWN_PRETTIER: false
           VALIDATE_JSON_PRETTIER: false
