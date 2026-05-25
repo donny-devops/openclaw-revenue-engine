@@ -1,0 +1,21 @@
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tool: [eslint, prettier, yamllint, gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ${{ matrix.tool }}
+        run: |
+          case "${{ matrix.tool }}" in
+            eslint) npm run lint ;;
+            prettier) npm run format:check ;;
+            yamllint) yamllint . ;;
+            gitleaks) gitleaks detect --no-banner ;;
+          esac
