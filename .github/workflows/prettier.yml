@@ -1,0 +1,2 @@
+- name: Prettier Check
+  run: npm run format:check
