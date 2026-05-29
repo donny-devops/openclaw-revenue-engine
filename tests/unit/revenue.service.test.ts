@@ -71,6 +71,22 @@ describe('revenue service catalog', () => {
     expect(classification.estimated_revenue).toBe(49);
   });
 
+  it('rejects unknown lane overrides', () => {
+    expect(() => classifyPaidRequest({
+      lane: 'does-not-exist',
+      service: 'repo-triage',
+      body: 'Classify this request.',
+    })).toThrow('Unknown or disabled lane: does-not-exist');
+  });
+
+  it('rejects unknown service overrides', () => {
+    expect(() => classifyPaidRequest({
+      lane: 'small-request',
+      service: 'does-not-exist',
+      body: 'Classify this request.',
+    })).toThrow('Unknown or disabled service: does-not-exist');
+  });
+
   it('enforces selected lane input limits', () => {
     expect(() => classifyPaidRequest({
       lane: 'small-request',
