@@ -1,4 +1,5 @@
 import request from 'supertest';
+import * as revenueService from '../../src/revenue/serviceCatalog';
 
 beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_revenue_routes_placeholder';
@@ -65,5 +66,45 @@ describe('revenue routes', () => {
     const res = await request(app).post('/revenue/classify').send({ body: '' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid paid request payload');
+  });
+
+  it('returns 400 when classify detects a required input error', async () => {
+    const res = await request(app).post('/revenue/classify').send({ body: '   ' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Paid request body is required');
+  });
+
+  it('returns 400 when classify detects an unknown lane', async () => {
+    const res = await request(app).post('/revenue/classify').send({
+      body: 'Please triage this repository.',
+      lane: 'missing-lane',
+      service: 'repo-triage',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Unknown or disabled lane: missing-lane');
+  });
+
+  it('returns 400 when classify detects max input limit violations', async () => {
+    const res = await request(app).post('/revenue/classify').send({
+      body: 'x'.repeat(4000),
+      lane: 'small-request',
+      service: 'repo-triage',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Paid request exceeds small-request lane max_input_chars limit');
+  });
+
+  it('returns 500 when classify throws a non-input error', async () => {
+    const classifySpy = jest.spyOn(revenueService, 'classifyPaidRequest').mockImplementation(() => {
+      throw new Error('Unexpected revenue failure');
+    });
+
+    const res = await request(app).post('/revenue/classify').send({
+      body: 'Please triage this repository.',
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Revenue configuration error');
+    classifySpy.mockRestore();
   });
 });
