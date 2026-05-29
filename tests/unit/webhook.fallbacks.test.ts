@@ -38,7 +38,7 @@ describe('requireEnv guards at module load', () => {
     delete process.env.STRIPE_SECRET_KEY;
     expect(() => {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../../src/webhooks/stripe.webhook');
       });
     }).toThrow(/STRIPE_SECRET_KEY/);
@@ -48,7 +48,7 @@ describe('requireEnv guards at module load', () => {
     delete process.env.STRIPE_WEBHOOK_SECRET;
     expect(() => {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../../src/webhooks/stripe.webhook');
       });
     }).toThrow(/STRIPE_WEBHOOK_SECRET/);
@@ -58,7 +58,7 @@ describe('requireEnv guards at module load', () => {
     delete process.env.GITHUB_WEBHOOK_SECRET;
     expect(() => {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../../src/webhooks/github.webhook');
       });
     }).toThrow(/GITHUB_WEBHOOK_SECRET/);
@@ -85,7 +85,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     process.env.STRIPE_SECRET_KEY = 'sk_test_fallbacks';
     process.env.STRIPE_WEBHOOK_SECRET = STRIPE_TEST_WEBHOOK_SECRET;
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mod = require('../../src/webhooks/stripe.webhook') as typeof import('../../src/webhooks/stripe.webhook');
       stripeWebhookHandler = mod.stripeWebhookHandler;
     });
@@ -130,7 +130,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
   it('returns 400 with "Unknown error" when constructEvent throws a non-Error', () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockConstructEvent.mockImplementationOnce(() => {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      // eslint-disable-next-line no-throw-literal
       throw 'not-an-Error-instance';
     });
     const captured = mockResponse();
@@ -149,7 +149,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
         // accessing .id on this proxy throws a non-Error string
         object: new Proxy({}, {
           get() {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            // eslint-disable-next-line no-throw-literal
             throw 'string-not-error';
           },
         }),
@@ -172,7 +172,7 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
   beforeAll(() => {
     process.env.GITHUB_WEBHOOK_SECRET = GITHUB_TEST_WEBHOOK_SECRET;
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mod = require('../../src/webhooks/github.webhook') as typeof import('../../src/webhooks/github.webhook');
       githubWebhookHandler = mod.githubWebhookHandler;
     });
@@ -280,7 +280,7 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
       return new Proxy({ ref: 'refs/heads/main' }, {
         get(t, k) {
           if (k === 'repository') {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            // eslint-disable-next-line no-throw-literal
             throw 'non-error-string';
           }
           return (t as Record<string, unknown>)[k as string];

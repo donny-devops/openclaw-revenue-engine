@@ -49,7 +49,7 @@ describe('src/index.ts env-var fallback branches', () => {
     await new Promise<void>((resolve) => {
       jest.isolateModules(() => {
         // Stub express.Application.prototype.listen to a no-op for this load.
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const express = require('express') as typeof import('express');
         // eslint-disable-next-line @typescript-eslint/unbound-method, @typescript-eslint/no-explicit-any
         const origListen = (express.application as any).listen;
@@ -62,7 +62,7 @@ describe('src/index.ts env-var fallback branches', () => {
           }
           return { close: () => undefined };
         };
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require('../../src/index') as { default: Application };
         appInst = mod.default;
         // restore listen

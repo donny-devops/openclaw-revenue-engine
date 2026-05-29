@@ -29,7 +29,7 @@ beforeAll(() => {
   // a synchronous callback, and dynamic import() would resolve outside the
   // isolation scope.
   jest.isolateModules(() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('../../src/webhooks/github.webhook') as typeof import('../../src/webhooks/github.webhook');
     githubWebhookHandler = mod.githubWebhookHandler;
   });
