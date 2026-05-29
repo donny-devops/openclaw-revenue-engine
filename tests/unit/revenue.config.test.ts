@@ -2,7 +2,7 @@ const importConfigWithReadMock = (readFileSyncImpl: (filePath: string) => string
   jest.resetModules();
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fs = require('fs') as typeof import('fs');
-  jest.spyOn(fs, 'readFileSync').mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+  jest.spyOn(fs, 'readFileSync').mockImplementation((filePath: unknown) => {
     return readFileSyncImpl(String(filePath));
   });
   // eslint-disable-next-line @typescript-eslint/no-var-requires
