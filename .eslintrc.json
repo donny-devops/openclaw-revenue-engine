@@ -30,5 +30,13 @@
       }
     ],
     "no-console": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-require-imports": "off"
+      }
+    }
+  ]
 }
