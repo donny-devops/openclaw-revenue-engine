@@ -130,7 +130,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
   it('returns 400 with "Unknown error" when constructEvent throws a non-Error', () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockConstructEvent.mockImplementationOnce(() => {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw 'not-an-Error-instance';
     });
     const captured = mockResponse();
@@ -149,7 +149,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
         // accessing .id on this proxy throws a non-Error string
         object: new Proxy({}, {
           get() {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw 'string-not-error';
           },
         }),
@@ -280,7 +280,7 @@ describe('githubWebhookHandler — header normalisation and fallbacks', () => {
       return new Proxy({ ref: 'refs/heads/main' }, {
         get(t, k) {
           if (k === 'repository') {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw 'non-error-string';
           }
           return (t as Record<string, unknown>)[k as string];
