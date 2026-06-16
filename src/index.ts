@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createLogger, format, transports } from 'winston';
 
+import { revenueRouter } from './routes/revenue';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 
@@ -58,6 +59,7 @@ app.use(cors({
   credentials: process.env.CORS_CREDENTIALS === 'true',
 }));
 app.use(express.json());
+app.use('/revenue', revenueRouter);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -68,6 +70,10 @@ app.get('/', (_req: Request, res: Response) => {
     name: 'openclaw-revenue-engine',
     version: process.env.npm_package_version ?? '1.0.0',
     docs: '/health',
+    revenue: '/revenue/summary',
+    lanes: '/revenue/lanes',
+    services: '/revenue/services',
+    openclaw: '/revenue/openclaw',
   });
 });
 

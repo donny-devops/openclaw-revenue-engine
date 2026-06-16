@@ -6,7 +6,7 @@
 # =============================================================================
 
 # ---- Stage 1: deps ----
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 
 # Copy only package files for better layer caching
@@ -16,7 +16,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ---- Stage 2: builder ----
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Copy package files and install ALL dependencies (including devDeps for build)
@@ -26,12 +26,14 @@ RUN npm ci
 # Copy source and config
 COPY tsconfig.json ./
 COPY src ./src
+COPY config ./config
+COPY services ./services
 
 # Compile TypeScript
 RUN npm run build
 
 # ---- Stage 3: runner ----
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 # Security: run as non-root user
@@ -43,6 +45,10 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy compiled output from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy revenue configuration and deliverable templates
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/services ./services
 
 # Copy package.json for metadata
 COPY package.json ./

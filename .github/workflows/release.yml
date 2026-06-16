@@ -1,0 +1,79 @@
+---
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v1.0.1"
+        required: true
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release notes
+        run: |
+          cat > RELEASE_NOTES.md <<'NOTES'
+          ## openclaw-revenue-engine
+
+          Automated release for the OpenClaw revenue engine.
+
+          ### Package
+
+          - Container image:
+            `ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.tag }}`
+          - Source tag: `${{ steps.vars.outputs.tag }}`
+
+          ### Validation
+
+          This release is created from repository CI-controlled source.
+          NOTES
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: openclaw-revenue-engine ${{ steps.vars.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: true
+          prerelease: ${{ steps.vars.outputs.prerelease == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
