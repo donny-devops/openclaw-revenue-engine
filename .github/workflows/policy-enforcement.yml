@@ -1,0 +1,143 @@
+# Policy enforcement workflow.
+#
+# Aggregates project policy gates that every change must satisfy before
+# it can be merged into a primary branch. Heavy security scanners
+# (CodeQL, Trivy, dependency-review, TruffleHog) live in their own
+# workflows; this workflow focuses on the policy gates that are quick
+# to run and tied to the project's package scripts.
+name: Policy Enforcement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: policy-enforcement-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-policy:
+    name: Repository policy checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify required policy files exist
+        run: |
+          set -euo pipefail
+          required_files=(
+            "LICENSE"
+            "README.md"
+            "SECURITY.md"
+            ".gitignore"
+            "package.json"
+            "tsconfig.json"
+          )
+          missing=0
+          for f in "${required_files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "::error file=$f::Required policy file is missing"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Block committed secrets / env files
+        run: |
+          set -euo pipefail
+          # .env.example is allowed; any other tracked .env* file is a policy violation.
+          tracked_env=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '^\.env\.example$' || true)
+          if [ -n "$tracked_env" ]; then
+            echo "::error::Tracked environment files detected (only .env.example is permitted):"
+            echo "$tracked_env"
+            exit 1
+          fi
+
+      - name: Reject oversized files (>1 MiB)
+        run: |
+          set -euo pipefail
+          # Large binaries should not live in this repo. Threshold mirrors
+          # GitHub's recommendation for source-tree files.
+          oversized=$(git ls-files -z | xargs -0 -I{} sh -c '
+            f="$1"
+            if [ -f "$f" ]; then
+              size=$(wc -c < "$f")
+              if [ "$size" -gt 1048576 ]; then
+                printf "%s\t%s\n" "$size" "$f"
+              fi
+            fi
+          ' _ {})
+          if [ -n "$oversized" ]; then
+            echo "::error::Files larger than 1 MiB are not permitted in this repository:"
+            echo "$oversized"
+            exit 1
+          fi
+
+  code-policy:
+    name: Code policy gates (lint, type-check, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: repo-policy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        # `npm ci` requires a lockfile; this repo currently ships only
+        # package.json, so use `npm install` to stay compatible.
+        run: npm install --no-audit --no-fund
+
+      - name: Lint (ESLint)
+        run: npm run lint --if-present
+
+      - name: Type check (tsc --noEmit)
+        run: npm run type-check --if-present
+
+      - name: Tests (jest)
+        run: npm test --if-present
+
+      - name: Build (tsc)
+        run: npm run build --if-present
+
+  dependency-policy:
+    name: Dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: repo-policy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: npm audit (high+ severity, production deps only)
+        # Fail the policy gate on high/critical advisories in runtime
+        # dependencies. Dev-only advisories are reviewed in the wider
+        # security workflows (CodeQL, Trivy) and are not blocking here.
+        run: npm audit --omit=dev --audit-level=high
