@@ -8,6 +8,7 @@ beforeAll(() => {
 });
 
 import app from '../../src/index';
+import * as revenueServiceCatalog from '../../src/revenue/serviceCatalog';
 
 describe('revenue routes', () => {
   it('returns revenue summary', async () => {
@@ -65,5 +66,38 @@ describe('revenue routes', () => {
     const res = await request(app).post('/revenue/classify').send({ body: '' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid paid request payload');
+  });
+
+  it('maps input-validation errors from classifier to 400', async () => {
+    const required = await request(app).post('/revenue/classify').send({ body: '   ' });
+    expect(required.status).toBe(400);
+    expect(required.body.error).toBe('Paid request body is required');
+
+    const unknown = await request(app).post('/revenue/classify').send({
+      body: 'Please classify this request.',
+      service: 'unknown-service',
+    });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error).toBe('Unknown or disabled service: unknown-service');
+
+    const maxInput = await request(app).post('/revenue/classify').send({
+      lane: 'small-request',
+      body: 'x'.repeat(3200),
+    });
+    expect(maxInput.status).toBe(400);
+    expect(maxInput.body.error).toBe('Paid request exceeds small-request lane max_input_chars limit');
+  });
+
+  it('maps non-input classifier errors to 500', async () => {
+    const spy = jest.spyOn(revenueServiceCatalog, 'classifyPaidRequest')
+      .mockImplementation(() => { throw new Error('unexpected failure'); });
+
+    const res = await request(app).post('/revenue/classify').send({
+      body: 'Valid payload that should parse.',
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Revenue configuration error');
+    spy.mockRestore();
   });
 });

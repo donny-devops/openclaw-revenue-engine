@@ -82,4 +82,18 @@ describe('revenue service catalog', () => {
   it('rejects empty paid request bodies', () => {
     expect(() => classifyPaidRequest({ body: '   ' })).toThrow('Paid request body is required');
   });
+
+  it('rejects unknown or disabled lane overrides', () => {
+    expect(() => classifyPaidRequest({
+      lane: 'not-a-lane',
+      body: 'Please classify this paid request.',
+    })).toThrow('Unknown or disabled lane: not-a-lane');
+  });
+
+  it('rejects unknown or disabled service overrides', () => {
+    expect(() => classifyPaidRequest({
+      service: 'not-a-service',
+      body: 'Please classify this paid request.',
+    })).toThrow('Unknown or disabled service: not-a-service');
+  });
 });
