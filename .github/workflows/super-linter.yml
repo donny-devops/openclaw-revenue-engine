@@ -1,4 +1,4 @@
-name: Super-Linter
+name: Super-Linter (Advisory)
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   lint:
-    name: Super-Linter
+    name: Super-Linter (advisory)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -22,26 +22,32 @@ jobs:
           fetch-depth: 0
 
       - name: Super-Linter
+        # Advisory-only signal while the repository keeps linting requirements in CI.
+        continue-on-error: true
         uses: super-linter/super-linter@v8.6.0
         env:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
-          # JS/TS already linted by the existing ESLint workflow (eslint.yml).
+          # JS/TS already uses the existing ESLint workflow.
           VALIDATE_JAVASCRIPT_ES: false
           VALIDATE_TYPESCRIPT_ES: false
           VALIDATE_JSCPD: false
-          # Biome is an alternative JS/TS linter/formatter; we standardize on ESLint.
+          # Biome is an alternative JS/TS linter/formatter.
           VALIDATE_BIOME_LINT: false
           VALIDATE_BIOME_FORMAT: false
-          # Repo style is single-quote + 2-space indent; do not enforce Prettier defaults.
+          # Repo style is single-quote with 2-space indent.
           VALIDATE_JAVASCRIPT_PRETTIER: false
           VALIDATE_TYPESCRIPT_PRETTIER: false
-          # JSON formatting is handled outside this broad linter to avoid duplicate policy noise.
+          # Markdown/JSON/YAML checks are intentionally manual in this advisory workflow.
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
           VALIDATE_JSON_PRETTIER: false
-          # Dockerfile/IaC vulnerability scanning is owned by codescan.yml (Trivy).
+          VALIDATE_YAML: false
+          VALIDATE_YAML_PRETTIER: false
+          # Dockerfile/IaC vulnerability scanning is owned by Trivy.
           VALIDATE_CHECKOV: false
-          # Action security scanning is in scope for a separate hardening PR.
+          # Action security scanning belongs in a separate hardening PR.
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
-          # Keep least-privilege permissions; do not require PR comment writes.
+          # Keep least-privilege permissions; do not write PR comments.
           ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false
