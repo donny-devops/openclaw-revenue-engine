@@ -10,9 +10,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
-    name: Lint, type-check, unit, build (${{ matrix.node-version }})
+    name: Lint, type-check, unit, audit, build (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,6 +43,9 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit --if-present
+
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build
         run: npm run build --if-present
