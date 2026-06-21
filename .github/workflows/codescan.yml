@@ -42,6 +42,8 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+          ignore-unfixed: true  # already set
+exit-code: "1"        # change to "0" to warn instead of fail
 
       - name: Upload Trivy SARIF to GitHub Security
         if: always()
