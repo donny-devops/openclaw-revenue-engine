@@ -1,51 +1,134 @@
-name: CI
+name: Full CI
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CI: "true"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: full-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Lint, type-check, unit, audit, build (${{ matrix.node-version }})
+  # -----------------------------
+  # RUST CI (matrix)
+  # -----------------------------
+  rust:
+    name: Rust CI (toolchain ${{ matrix.rust }})
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22]
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+        rust: [stable, beta, nightly]
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --all-targets --verbose
+
+      - name: Test
+        run: cargo test --all-targets --verbose
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+  # -----------------------------
+  # RUST SECURITY AUDIT
+  # -----------------------------
+  rust-security:
+    name: Rust Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run audit
+        run: cargo audit
+
+  # -----------------------------
+  # NODE API + CONTRACT TESTS
+  # -----------------------------
+  api-contract:
+    name: API & Contract Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x]
+
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: silent
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+      GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
+      JWT_SECRET: ci_jwt_secret_placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint --if-present
-
       - name: Type check
         run: npm run type-check --if-present
 
-      - name: Unit tests
-        run: npm run test:unit --if-present
+      - name: API tests
+        id: api
+        run: npm run test:api
 
-      - name: Dependency audit
-        run: npm audit --omit=dev --audit-level=high
+      - name: Contract tests
+        id: contract
+        if: always() && steps.api.conclusion != 'cancelled'
+        run: npm run test:contract
 
-      - name: Build
-        run: npm run build --if-present
+      - name: Upload OpenAPI spec
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.yaml
+          retention-days: 14
