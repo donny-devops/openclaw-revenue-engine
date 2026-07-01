@@ -1,0 +1,46 @@
+---
+name: OWASP ZAP Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Target URL to scan, including protocol"
+        required: true
+        type: string
+      fail_action:
+        description: "Fail workflow when ZAP reports alerts"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: zap-${{ github.ref }}-${{ inputs.target_url }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: OWASP ZAP baseline scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: ${{ inputs.target_url }}
+          docker_name: ghcr.io/zaproxy/zaproxy:stable
+          allow_issue_writing: false
+          fail_action: ${{ inputs.fail_action }}
+          artifact_name: zap-baseline-report
+          cmd_options: "-a -I"
