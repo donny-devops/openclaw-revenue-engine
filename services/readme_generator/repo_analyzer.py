@@ -196,6 +196,13 @@ def analyze_repo(owner: str, repo_name: str) -> RepoFacts:
     client = _get_client()
     repo = client.get_repo(f"{owner}/{repo_name}")
 
+    if repo.private:
+        raise ValueError(
+            f"Refusing to analyze private repo {owner}/{repo_name}. "
+            "Only public repositories are supported to prevent leaking "
+            "private code to a public Gist."
+        )
+
     default_branch = repo.default_branch or "main"
     primary_language = repo.language or ""
 

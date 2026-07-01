@@ -66,6 +66,7 @@ def _fake_repo(
     repo.homepage = ""
     repo.default_branch = "main"
     repo.language = language
+    repo.private = False
     repo.stargazers_count = 123
     repo.forks_count = 45
     repo.open_issues_count = 6
@@ -238,3 +239,16 @@ def test_analyze_rust_repo_prefers_cargo_toml():
     assert "name = \"thing\"" in facts.manifest_snippet
     assert facts.entrypoint_filename == "src/main.rs"
     assert "Rust (Cargo)" in facts.tech_stack_labels
+
+
+def test_analyze_private_repo_raises():
+    """Private repos must be rejected to prevent leaking code to a public Gist."""
+    repo = MagicMock()
+    repo.full_name = "corp/secret"
+    repo.private = True
+    fake_client = MagicMock()
+    fake_client.get_repo.return_value = repo
+
+    with patch.object(repo_analyzer, "_get_client", return_value=fake_client):
+        with pytest.raises(ValueError, match="private repo"):
+            analyze_repo("corp", "secret")

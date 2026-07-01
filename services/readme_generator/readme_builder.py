@@ -38,42 +38,47 @@ def _escape_fences(text: str) -> str:
 
 
 def _render_facts_markdown(facts: RepoFacts) -> str:
-    """Render RepoFacts as a compact Markdown block for the user message."""
+    """Render RepoFacts as a compact Markdown block for the user message.
+
+    All repo-controlled string fields are escaped via _escape_fences() to
+    prevent tag injection or fence breakouts in the model prompt.
+    """
+    esc = _escape_fences
     lines: list[str] = []
-    lines.append(f"- full_name: `{facts.full_name}`")
-    lines.append(f"- description: {facts.description or '(none)'}")
-    lines.append(f"- homepage: {facts.homepage or '(none)'}")
-    lines.append(f"- default_branch: `{facts.default_branch}`")
-    lines.append(f"- primary_language: {facts.primary_language or '(unknown)'}")
-    lines.append(f"- license_spdx: {facts.license_spdx or '(unknown)'}")
+    lines.append(f"- full_name: `{esc(facts.full_name)}`")
+    lines.append(f"- description: {esc(facts.description) or '(none)'}")
+    lines.append(f"- homepage: {esc(facts.homepage) or '(none)'}")
+    lines.append(f"- default_branch: `{esc(facts.default_branch)}`")
+    lines.append(f"- primary_language: {esc(facts.primary_language) or '(unknown)'}")
+    lines.append(f"- license_spdx: {esc(facts.license_spdx) or '(unknown)'}")
     lines.append(f"- stars: {facts.stars} | forks: {facts.forks} | open_issues: {facts.open_issues}")
     lines.append(f"- has_ci: {facts.has_ci} | has_tests: {facts.has_tests}")
-    lines.append(f"- topics: {', '.join(facts.topics) if facts.topics else '(none)'}")
-    lines.append(f"- tech_stack_labels: {', '.join(facts.tech_stack_labels) or '(none)'}")
+    lines.append(f"- topics: {', '.join(esc(t) for t in facts.topics) if facts.topics else '(none)'}")
+    lines.append(f"- tech_stack_labels: {', '.join(esc(l) for l in facts.tech_stack_labels) or '(none)'}")
 
     if facts.languages:
         lines.append("- languages (bytes):")
         for lang, size in sorted(facts.languages.items(), key=lambda kv: -kv[1])[:6]:
-            lines.append(f"    - {lang}: {size}")
+            lines.append(f"    - {esc(lang)}: {size}")
 
-    lines.append(f"- entrypoint_filename: {facts.entrypoint_filename or '(none detected)'}")
-    lines.append(f"- manifest_filename: {facts.manifest_filename or '(none detected)'}")
+    lines.append(f"- entrypoint_filename: {esc(facts.entrypoint_filename) or '(none detected)'}")
+    lines.append(f"- manifest_filename: {esc(facts.manifest_filename) or '(none detected)'}")
     if facts.manifest_snippet:
-        lines.append(f"- manifest_snippet ({facts.manifest_filename or ''}):")
+        lines.append(f"- manifest_snippet ({esc(facts.manifest_filename or '')}):")
         lines.append('<untrusted-data source="manifest">')
-        lines.append(_escape_fences(facts.manifest_snippet))
+        lines.append(esc(facts.manifest_snippet))
         lines.append("</untrusted-data>")
 
     lines.append("- tree_depth2:")
     for path in facts.tree_depth2[:60]:
-        lines.append(f"    {path}")
+        lines.append(f"    {esc(path)}")
     if len(facts.tree_depth2) > 60:
         lines.append(f"    ... ({len(facts.tree_depth2) - 60} more omitted)")
 
     if facts.existing_readme_excerpt:
         lines.append("- existing_readme_excerpt (for style reference only, do not copy):")
         lines.append('<untrusted-data source="existing_readme">')
-        lines.append(_escape_fences(facts.existing_readme_excerpt))
+        lines.append(esc(facts.existing_readme_excerpt))
         lines.append("</untrusted-data>")
 
     return "\n".join(lines)
