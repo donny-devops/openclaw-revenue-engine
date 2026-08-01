@@ -10,7 +10,7 @@ FROM node:26-alpine AS deps
 WORKDIR /app
 
 # Copy only package files for better layer caching
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 
 # Install production dependencies only
 RUN npm ci --omit=dev && npm cache clean --force
@@ -20,7 +20,7 @@ FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Copy package files and install ALL dependencies (including devDeps for build)
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 # Copy source and config
