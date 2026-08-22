@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `chore: add GitHub issue templates` — added `bug_report.md`, `feature_request.md`, and `custom.md` under `.github/ISSUE_TEMPLATE/` to standardise contributor issue reporting ([#120](https://github.com/donny-devops/openclaw-revenue-engine/pull/120))
 - `feat: add global rate limiter middleware` — Redis sliding-window with in-memory fallback, `X-RateLimit-*` headers, `429` responses, allow-list bypass via `RATE_LIMIT_SKIP_IPS` ([#1](https://github.com/donny-devops/openclaw-revenue-engine/pull/1))
 - `feat: wire globalRateLimiter into src/index.ts` — mounted before all routes; added morgan request logging, dotenv config, graceful SIGTERM/SIGINT shutdown, and `trust proxy` for production
 - `test: unit tests for rateLimiter middleware` — covers allowed requests, 429 limit exceeded, allow-list bypass, `X-Forwarded-For` IP resolution
