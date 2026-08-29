@@ -61,5 +61,8 @@
     "typescript",
     "nodejs"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
 }
