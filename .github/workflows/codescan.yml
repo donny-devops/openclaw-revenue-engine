@@ -34,9 +34,11 @@ jobs:
           scanners: vuln
           format: sarif
           output: trivy-results.sarif
-          exit-code: "1"  # Set to "0" if you only want to warn in Security tab instead of failing the build
+          exit-code: "1"
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+          # SARIF includes all severities unless this is set; otherwise MEDIUM findings fail the job.
+          limit-severities-for-sarif: true
       - name: Upload Trivy SARIF to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
