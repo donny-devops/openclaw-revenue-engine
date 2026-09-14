@@ -98,7 +98,7 @@ describe('stripeWebhookHandler — invalid signature', () => {
 
     expect(captured.statusCode).toBe(400);
     expect(captured.body).toMatchObject({
-      error: expect.stringContaining('signature verification failed'),
+      error: 'Webhook signature verification failed',
     });
     errorSpy.mockRestore();
   });

@@ -4,6 +4,9 @@ import { UsageEvent, UsageSummary } from './types';
 const events: UsageEvent[] = [];
 const idempotencyIndex = new Map<string, UsageEvent>();
 
+const buildIdempotencyKey = (tenantId: string, idempotencyKey: string): string =>
+  `${tenantId}::${idempotencyKey}`;
+
 const clone = (event: UsageEvent): UsageEvent => ({
   ...event,
   metadata: { ...event.metadata },
@@ -35,7 +38,7 @@ export function recordUsageEvent(input: {
   }
 
   if (input.idempotency_key) {
-    const existing = idempotencyIndex.get(input.idempotency_key);
+    const existing = idempotencyIndex.get(buildIdempotencyKey(input.tenant_id, input.idempotency_key));
     if (existing) return clone(existing);
   }
 
@@ -52,7 +55,7 @@ export function recordUsageEvent(input: {
 
   events.push(event);
   if (event.idempotency_key) {
-    idempotencyIndex.set(event.idempotency_key, event);
+    idempotencyIndex.set(buildIdempotencyKey(event.tenant_id, event.idempotency_key), event);
   }
   return clone(event);
 }

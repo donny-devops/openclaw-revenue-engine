@@ -8,6 +8,7 @@ import { createLaneCheckout, simulatePaymentCollection } from '../../src/billing
 import {
   createPayment,
   findPaymentByStripeSession,
+  listPayments,
   resetLedger,
   updatePayment,
 } from '../../src/billing/ledger';
@@ -88,6 +89,12 @@ describe('live Stripe checkout and error branches', () => {
         customer_email: 'buyer@example.com',
       }),
     ).rejects.toThrow('Stripe did not return a checkout URL');
+    expect(listPayments()).toEqual([
+      expect.objectContaining({
+        status: 'failed',
+        stripe_session_id: 'cs_missing_url',
+      }),
+    ]);
   });
 
   it('rejects simulated collection in production and for live payments', async () => {
@@ -146,7 +153,7 @@ describe('live Stripe checkout and error branches', () => {
     expect(agents.error).toBeUndefined();
     expect(earnings.error).toBeUndefined();
     expect(payments.error).toBeUndefined();
-    expect(unknown.error?.message).toContain('Unknown MCP tool');
+    expect(unknown.error?.message).toContain('Tool not allowed by MCP gateway policy');
     expect(badMethod.error?.message).toContain('Unsupported MCP method');
     expect(mcpHttp.status).toBe(400);
   });

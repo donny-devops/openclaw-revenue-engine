@@ -58,6 +58,35 @@ describe('billing ledger and usage', () => {
     expect(earnings.collected_usd).toBe(29);
   });
 
+  it('filters earnings snapshots by currency', () => {
+    createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      customer_email: 'buyer@example.com',
+      simulated: true,
+    });
+    const eurPayment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 3100,
+      currency: 'eur',
+      customer_email: 'buyer@example.com',
+      simulated: true,
+    });
+    markPaymentStatus(eurPayment.id, 'paid');
+
+    const usd = getEarningsSnapshot('USD');
+    const eur = getEarningsSnapshot('eur');
+
+    expect(usd.currency).toBe('usd');
+    expect(usd.payments).toBe(1);
+    expect(usd.collected_cents).toBe(0);
+    expect(eur.payments).toBe(1);
+    expect(eur.collected_cents).toBe(3100);
+  });
+
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);
@@ -92,6 +121,25 @@ describe('billing ledger and usage', () => {
     });
     expect(replay.id).toBe(event.id);
     expect(getUsageSummary('tenant_1').totals_by_metric.api_call).toBe(3);
+  });
+
+  it('scopes usage idempotency keys per tenant', () => {
+    const first = recordUsageEvent({
+      tenant_id: 'tenant_1',
+      metric_type: 'api_call',
+      quantity: 1,
+      idempotency_key: 'shared',
+    });
+    const second = recordUsageEvent({
+      tenant_id: 'tenant_2',
+      metric_type: 'api_call',
+      quantity: 2,
+      idempotency_key: 'shared',
+    });
+
+    expect(second.id).not.toBe(first.id);
+    expect(getUsageSummary('tenant_1').totals_by_metric.api_call).toBe(1);
+    expect(getUsageSummary('tenant_2').totals_by_metric.api_call).toBe(2);
   });
 });
 
@@ -146,6 +194,12 @@ describe('operator auth', () => {
     expect(result.nextCalled).toBe(true);
   });
 
+  it('accepts a bearer token with extra spaces', () => {
+    process.env.OPERATOR_API_KEY = 'operator-secret';
+    const result = run({ headers: { authorization: ['Bearer', process.env.OPERATOR_API_KEY].join('   ') } });
+    expect(result.nextCalled).toBe(true);
+  });
+
   it('accepts a valid JWT', () => {
     process.env.JWT_SECRET = 'jwt-secret-value';
     delete process.env.OPERATOR_API_KEY;
@@ -157,6 +211,13 @@ describe('operator auth', () => {
   it('rejects a missing bearer token when auth is configured', () => {
     process.env.OPERATOR_API_KEY = 'operator-secret';
     const result = run({ headers: {} });
+    expect(result.nextCalled).toBe(false);
+    expect(result.captured.statusCode).toBe(401);
+  });
+
+  it('rejects authorization values without a bearer separator', () => {
+    process.env.OPERATOR_API_KEY = 'operator-secret';
+    const result = run({ headers: { authorization: 'Beareroperator-secret' } });
     expect(result.nextCalled).toBe(false);
     expect(result.captured.statusCode).toBe(401);
   });
@@ -197,9 +258,28 @@ describe('MCP server', () => {
         },
       },
     });
-    expect(result.error).toBeUndefined();
-    expect(result.result).toMatchObject({
-      structuredContent: expect.objectContaining({ simulated: true }),
+    expect(result.result).toBeUndefined();
+    expect(result.error).toMatchObject({
+      code: -32000,
+      message: 'Tool requires human approval: create_checkout',
     });
   });
+
+  it('rejects non-object MCP tool arguments at dispatch time', async () => {
+    const result = await handleMcpRequest({
+      method: 'tools/call',
+      id: 4,
+      params: {
+        name: 'classify_paid_request',
+        arguments: 'invalid' as unknown as Record<string, unknown>,
+      },
+    });
+
+    expect(result.result).toBeUndefined();
+    expect(result.error).toMatchObject({
+      code: -32000,
+      message: 'Tool arguments must be an object',
+    });
+  });
+
 });

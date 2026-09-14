@@ -44,8 +44,17 @@ describe('revenue service catalog', () => {
     expect(classification.lane.slug).toBe('real-offer');
     expect(classification.estimated_revenue).toBe(49);
     expect(classification.labels).toEqual(
-      expect.arrayContaining(['moltgate', 'paid-request', 'lane:real-offer', 'service:actions-debug']),
+      expect.arrayContaining([
+        'moltgate',
+        'paid-request',
+        'lane:real-offer',
+        'service:actions-debug',
+        'agent:swe-remediation-agent',
+      ]),
     );
+    expect(classification.assigned_agent?.slug).toBe('swe-remediation-agent');
+    expect(classification.agent_plan?.primary.slug).toBe('swe-remediation-agent');
+    expect(classification.agent_plan?.supporting.length).toBeGreaterThan(0);
     expect(classification.deliverable_template).toContain('GitHub Actions Debug Sprint');
   });
 

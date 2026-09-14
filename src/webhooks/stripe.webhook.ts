@@ -66,7 +66,7 @@ export function stripeWebhookHandler(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Stripe webhook signature verification failed: ${redactSecrets(message)}`);
-    res.status(400).json({ error: `Webhook signature verification failed: ${message}` });
+    res.status(400).json({ error: 'Webhook signature verification failed' });
     return;
   }
 
@@ -139,8 +139,8 @@ function handlePaymentSucceeded(invoice: Stripe.Invoice): void {
   if (invoice.id) {
     recordInvoicePayment({
       stripe_invoice_id: invoice.id,
-      amount_cents: invoice.amount_paid,
-      currency: invoice.currency,
+      amount_cents: invoice.amount_paid ?? 0,
+      currency: invoice.currency ?? 'usd',
       customer_id: String(invoice.customer),
       status: 'paid',
     });

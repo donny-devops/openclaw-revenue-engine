@@ -1,7 +1,8 @@
-import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
+import { listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
 import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
+import gatewayConfig from '../../config/mcp-gateway.json';
 
 export interface McpTool {
   name: string;
@@ -83,8 +84,48 @@ const tools: McpTool[] = [
   },
 ];
 
+interface GatewayServerConfig {
+  slug: string;
+  allowed_tools?: string[];
+  human_approval_required_for?: string[];
+  enabled?: boolean;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const revenueGatewayConfig = (gatewayConfig.servers as GatewayServerConfig[]).find(
+  (server) => server.slug === 'revenue-engine-mcp-server',
+);
+const allowedTools = new Set(
+  revenueGatewayConfig?.enabled === false
+    ? []
+    : revenueGatewayConfig?.allowed_tools ?? tools.map((tool) => tool.name),
+);
+const approvalRequiredTools = new Set(revenueGatewayConfig?.human_approval_required_for ?? []);
+const visibleTools = tools.filter((tool) => allowedTools.has(tool.name));
+
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+
+export const validateMcpRequest = (request: unknown): string | undefined => {
+  if (!isRecord(request) || request.jsonrpc !== '2.0' || typeof request.method !== 'string') {
+    return 'Invalid MCP JSON-RPC payload';
+  }
+
+  if (request.method === 'tools/call') {
+    const params = request.params;
+    if (
+      !isRecord(params) ||
+      typeof params.name !== 'string' ||
+      ('arguments' in params && params.arguments !== undefined && !isRecord(params.arguments))
+    ) {
+      return 'Invalid MCP tool call payload';
+    }
+  }
+
+  return undefined;
+};
 
 async function callTool(name: string, args: Record<string, unknown> = {}): Promise<unknown> {
   switch (name) {
@@ -103,8 +144,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
         lane: asString(args.lane),
         service: asString(args.service),
       });
-      const agentPlan = assignAgents(classification.service.slug);
-      return { classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan } };
+      return { classification };
     }
     case 'create_checkout': {
       const body = asString(args.body);
@@ -129,7 +169,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
 }
 
 export function listMcpTools(): McpTool[] {
-  return tools;
+  return visibleTools;
 }
 
 export async function handleMcpRequest(request: McpRequest): Promise<McpResponse> {
@@ -145,14 +185,24 @@ export async function handleMcpRequest(request: McpRequest): Promise<McpResponse
               serverInfo: { name: 'openclaw-revenue-engine', version: '1.0.0' },
               capabilities: { tools: {} },
             }
-          : { tools },
+          : { tools: visibleTools },
       };
     }
 
     if (request.method === 'tools/call') {
       const name = request.params?.name;
       if (!name) throw new Error('Tool name is required');
-      const result = await callTool(name, request.params?.arguments ?? {});
+      if (!allowedTools.has(name)) {
+        throw new Error(`Tool not allowed by MCP gateway policy: ${name}`);
+      }
+      if (approvalRequiredTools.has(name)) {
+        throw new Error(`Tool requires human approval: ${name}`);
+      }
+      const args = request.params?.arguments;
+      if (args !== undefined && !isRecord(args)) {
+        throw new Error('Tool arguments must be an object');
+      }
+      const result = await callTool(name, args ?? {});
       return {
         jsonrpc: '2.0',
         id,

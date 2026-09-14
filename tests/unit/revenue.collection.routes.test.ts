@@ -17,6 +17,8 @@ describe('money collection routes', () => {
   beforeEach(() => {
     resetLedger();
     resetUsageMeter();
+    delete process.env.OPERATOR_API_KEY;
+    delete process.env.JWT_SECRET;
   });
 
   it('creates a checkout session and collects simulated payment', async () => {
@@ -39,6 +41,24 @@ describe('money collection routes', () => {
     const earnings = await request(app).get('/revenue/earnings');
     expect(earnings.status).toBe(200);
     expect(earnings.body.earnings.collected_cents).toBe(2900);
+  });
+
+  it('requires operator auth for payment details and collection routes when configured', async () => {
+    process.env.OPERATOR_API_KEY = 'operator-secret';
+
+    const checkout = await request(app).post('/revenue/checkout').send({
+      title: 'Repository triage',
+      body: 'Please review my GitHub portfolio repository and README.',
+      customer_email: 'buyer@example.com',
+    });
+
+    expect(checkout.status).toBe(201);
+
+    const payment = await request(app).get(`/revenue/payments/${checkout.body.payment.id}`);
+    expect(payment.status).toBe(401);
+
+    const collect = await request(app).post(`/revenue/payments/${checkout.body.payment.id}/collect`).send();
+    expect(collect.status).toBe(401);
   });
 
   it('rejects checkout without a customer email', async () => {
@@ -71,6 +91,12 @@ describe('money collection routes', () => {
     expect(summary.body.summary.totals_by_metric.agent_run).toBe(2);
   });
 
+  it('requires tenant_id for usage summaries', async () => {
+    const res = await request(app).get('/usage/summary');
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'tenant_id is required' });
+  });
+
   it('handles MCP JSON-RPC classify calls', async () => {
     const res = await request(app).post('/mcp').send({
       jsonrpc: '2.0',
@@ -83,5 +109,42 @@ describe('money collection routes', () => {
     });
     expect(res.status).toBe(200);
     expect(res.body.result.structuredContent.classification.service.slug).toBe('devsecops-hardening');
+  });
+
+  it('rejects MCP tool calls with non-object arguments', async () => {
+    const res = await request(app).post('/mcp').send({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'classify_paid_request',
+        arguments: 'invalid',
+      },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid MCP tool call payload' });
+  });
+
+  it('rejects MCP requests without a JSON-RPC 2.0 envelope', async () => {
+    const res = await request(app).post('/mcp').send({
+      id: 3,
+      method: 'tools/list',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid MCP JSON-RPC payload' });
+  });
+
+  it('supports MCP batch requests', async () => {
+    const res = await request(app).post('/mcp').send([
+      { jsonrpc: '2.0', id: 4, method: 'tools/list' },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_agents' } },
+    ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].result.tools).toEqual(expect.any(Array));
+    expect(res.body[1].result.structuredContent.agents).toEqual(expect.any(Array));
   });
 });

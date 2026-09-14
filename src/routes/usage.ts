@@ -34,6 +34,10 @@ usageRouter.post('/events', requireOperatorAuth, (req: Request, res: Response) =
 
 usageRouter.get('/summary', requireOperatorAuth, (req: Request, res: Response) => {
   const tenantId = typeof req.query.tenant_id === 'string' ? req.query.tenant_id : undefined;
+  if (!tenantId?.trim()) {
+    res.status(400).json({ error: 'tenant_id is required' });
+    return;
+  }
   res.json({ summary: getUsageSummary(tenantId) });
 });
 

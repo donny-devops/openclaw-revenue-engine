@@ -17,8 +17,16 @@ const readBearer = (req: Request): string | undefined => {
   const header = req.headers.authorization;
   const value = Array.isArray(header) ? header[0] : header;
   if (!value) return undefined;
-  const match = /^Bearer\s+(.+)$/i.exec(value.trim());
-  return match?.[1]?.trim();
+  const trimmed = value.trim();
+  if (trimmed.slice(0, 6).toLowerCase() !== 'bearer') {
+    return undefined;
+  }
+  const remainder = trimmed.slice(6);
+  if (!remainder || remainder[0]?.trim() !== '') {
+    return undefined;
+  }
+  const token = remainder.trim();
+  return token.length > 0 ? token : undefined;
 };
 
 export function requireOperatorAuth(req: Request, res: Response, next: NextFunction): void {
