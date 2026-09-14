@@ -16,7 +16,7 @@ const mcpRequestSchema = z.object({
   }).optional(),
 });
 
-mcpRouter.get('/tools', (_req: Request, res: Response) => {
+mcpRouter.get('/tools', requireOperatorAuth, (_req: Request, res: Response) => {
   res.json({ tools: listMcpTools() });
 });
 

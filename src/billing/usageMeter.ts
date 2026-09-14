@@ -3,6 +3,8 @@ import { UsageEvent, UsageSummary } from './types';
 
 const events: UsageEvent[] = [];
 const idempotencyIndex = new Map<string, UsageEvent>();
+const idempotencyScope = (tenantId: string, metricType: string, key: string): string =>
+  `${tenantId.trim()}::${metricType.trim()}::${key.trim()}`;
 
 const clone = (event: UsageEvent): UsageEvent => ({
   ...event,
@@ -34,8 +36,12 @@ export function recordUsageEvent(input: {
     throw new Error('metric_type is required');
   }
 
-  if (input.idempotency_key) {
-    const existing = idempotencyIndex.get(input.idempotency_key);
+  const scopedIdempotencyKey = input.idempotency_key
+    ? idempotencyScope(input.tenant_id, metric, input.idempotency_key)
+    : undefined;
+
+  if (scopedIdempotencyKey) {
+    const existing = idempotencyIndex.get(scopedIdempotencyKey);
     if (existing) return clone(existing);
   }
 
@@ -51,8 +57,8 @@ export function recordUsageEvent(input: {
   };
 
   events.push(event);
-  if (event.idempotency_key) {
-    idempotencyIndex.set(event.idempotency_key, event);
+  if (scopedIdempotencyKey) {
+    idempotencyIndex.set(scopedIdempotencyKey, event);
   }
   return clone(event);
 }

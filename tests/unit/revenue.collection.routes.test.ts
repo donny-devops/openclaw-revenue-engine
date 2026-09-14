@@ -54,7 +54,7 @@ describe('money collection routes', () => {
 
   it('lists agents and MCP tools', async () => {
     const agents = await request(app).get('/revenue/agents');
-    const tools = await request(app).get('/mcp/tools');
+    const tools = await withOperatorAuth(request(app).get('/mcp/tools'));
     expect(agents.status).toBe(200);
     expect(tools.status).toBe(200);
     expect(agents.body.agents).toEqual(
