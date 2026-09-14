@@ -9,6 +9,7 @@ import {
   recordInvoicePayment,
   rememberStripeEvent,
 } from '../billing/ledger';
+import { PaymentStatus } from '../billing/types';
 import { redactSecrets } from '../security/redact';
 
 const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
@@ -33,6 +34,8 @@ const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET');
  *   - invoice.payment_succeeded
  *   - invoice.payment_failed
  *   - checkout.session.completed
+ *   - checkout.session.async_payment_succeeded
+ *   - checkout.session.async_payment_failed
  *
  * Fix for @typescript-eslint/require-await (line 36):
  * stripe.webhooks.constructEvent() is synchronous — it returns Stripe.Event
@@ -96,7 +99,16 @@ export function stripeWebhookHandler(
         handlePaymentFailed(event.data.object);
         break;
       case 'checkout.session.completed':
-        handleCheckoutCompleted(event.data.object);
+        handleCheckoutSession(
+          event.data.object,
+          event.data.object.payment_status === 'paid' ? 'paid' : 'pending',
+        );
+        break;
+      case 'checkout.session.async_payment_succeeded':
+        handleCheckoutSession(event.data.object, 'paid');
+        break;
+      case 'checkout.session.async_payment_failed':
+        handleCheckoutSession(event.data.object, 'failed');
         break;
       default:
         console.log(`Unhandled Stripe event type: ${event.type}`);
@@ -162,16 +174,15 @@ function handlePaymentFailed(invoice: Stripe.Invoice): void {
   }
 }
 
-function handleCheckoutCompleted(session: Stripe.Checkout.Session): void {
-  console.log(`Checkout session completed: ${session.id}`);
+function handleCheckoutSession(session: Stripe.Checkout.Session, status: PaymentStatus): void {
+  console.log(`Checkout session ${session.id} → ${status} (payment_status=${session.payment_status})`);
   console.log(`Customer: ${String(session.customer)}`);
-  console.log(`Payment status: ${session.payment_status}`);
   const paymentId = session.metadata?.payment_id;
   const existing = (paymentId ? getPayment(paymentId) : undefined) ?? findPaymentByStripeSession(session.id);
   if (!existing) {
     return;
   }
-  markPaymentStatus(existing.id, session.payment_status === 'paid' ? 'paid' : 'pending', {
+  markPaymentStatus(existing.id, status, {
     stripe_session_id: session.id,
     stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
     amount_cents: session.amount_total ?? existing.amount_cents,
