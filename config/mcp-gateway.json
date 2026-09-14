@@ -62,6 +62,24 @@
       "enabled": true
     },
     {
+      "slug": "revenue-engine-mcp-server",
+      "name": "Revenue Engine MCP Server",
+      "purpose": "Classify paid requests, create checkout sessions, and report collected earnings.",
+      "required_secrets": ["STRIPE_SECRET_KEY", "OPERATOR_API_KEY"],
+      "allowed_tools": [
+        "list_lanes",
+        "list_services",
+        "list_agents",
+        "classify_paid_request",
+        "create_checkout",
+        "get_earnings",
+        "list_payments"
+      ],
+      "blocked_tools": ["billing.write_raw", "secrets.read"],
+      "human_approval_required_for": ["create_checkout"],
+      "enabled": true
+    },
+    {
       "slug": "cloud-control-mcp-server",
       "name": "Cloud Control MCP Server",
       "purpose": "Prepare cloud deployment plans for AWS, Azure, and GCP without auto-applying infrastructure.",

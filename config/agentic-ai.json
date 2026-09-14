@@ -18,7 +18,7 @@
     "mcp": {
       "enabled": true,
       "gateway_config": "config/mcp-gateway.json",
-      "servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server", "cloud-control-mcp-server"],
+      "servers": ["github-mcp-server", "filesystem-mcp-server", "postgres-mcp-server", "cloud-control-mcp-server", "revenue-engine-mcp-server"],
       "policy": "least_privilege_tool_access"
     },
     "continuous_optimization": {
@@ -45,8 +45,8 @@
       "purpose": "Classify Moltgate requests into paid lanes, services, agent tasks, and operator checklists.",
       "inputs": ["customer_request", "lane_catalog", "service_catalog"],
       "outputs": ["lane", "service", "labels", "agent_plan", "delivery_checklist"],
-      "mcp_servers": ["github-mcp-server", "postgres-mcp-server"],
-      "mcp_tools": ["repos.get", "issues.create", "postgres.query_readonly", "pgvector.search"],
+      "mcp_servers": ["github-mcp-server", "postgres-mcp-server", "revenue-engine-mcp-server"],
+      "mcp_tools": ["repos.get", "issues.create", "postgres.query_readonly", "pgvector.search", "classify_paid_request", "create_checkout"],
       "human_review_required": true,
       "enabled": true
     },

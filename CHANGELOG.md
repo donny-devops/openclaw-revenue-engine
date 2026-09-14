@@ -10,11 +10,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- `feat: add global rate limiter middleware` — Redis sliding-window with in-memory fallback, `X-RateLimit-*` headers, `429` responses, allow-list bypass via `RATE_LIMIT_SKIP_IPS` ([#1](https://github.com/donny-devops/openclaw-revenue-engine/pull/1))
-- `feat: wire globalRateLimiter into src/index.ts` — mounted before all routes; added morgan request logging, dotenv config, graceful SIGTERM/SIGINT shutdown, and `trust proxy` for production
-- `test: unit tests for rateLimiter middleware` — covers allowed requests, 429 limit exceeded, allow-list bypass, `X-Forwarded-For` IP resolution
-- `feat: add src/models/index.ts` — full TypeScript domain models: `Tenant`, `UsageRecord`, `Invoice`, `Subscription`, `EarningsSummary`, Stripe webhook payload types
-- `feat: add src/index.ts` — Express app entry point with health check, 404 handler, global error handler
+- Stripe Checkout money collection for paid lanes (`POST /revenue/checkout`) with a payment ledger, earnings snapshot, and local simulated collection for test/dev
+- Usage metering API (`POST /usage/events`, `GET /usage/summary`) with idempotent event recording
+- Operator auth middleware (API key or JWT) for earnings, payments, usage, and MCP mutating calls
+- HTTP + stdio MCP server exposing classify, checkout, earnings, lane, service, and agent tools
+- Agent/subagent assignment from `config/agentic-ai.json` during paid-request classification
+- OpenSSF Scorecard workflow, Trivy secret scanning, CodeQL Python analysis, and Gitleaks allowlists for documented placeholders
+- Poll runner classification handoff to the revenue engine via `REVENUE_ENGINE_URL`
+- Secrets-gated Railway deploy workflow and `railway.json` Dockerfile healthcheck config
+
+### Fixed
+- Replaced broken Full CI workflow (invalid nested YAML, Rust jobs on a Node repo, missing `test:api`/`test:contract` scripts, unconditional Railway deploys)
+- Made `npm run clean` work on Windows
+- Stripe and GitHub webhook handlers now persist collection state instead of only logging
+
+### Security
+- Secret redaction for Stripe/GitHub tokens in webhook error logs
+- Timing-safe operator API key comparison
+- Trust-proxy enabled for accurate rate limiting behind Railway/CDN
+
 
 ### Fixed
 - `fix: add rate-limiter-flexible, ioredis, morgan to package.json` — removed stale `express-rate-limit` dep that was incompatible with the chosen limiter implementation
