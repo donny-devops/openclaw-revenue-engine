@@ -1,17 +1,40 @@
-Readme · MD
-Copy
+# 💳 OpenClaw Revenue Engine
 
-# 🦞💰 OpenClaw Revenue Engine
- 
-**Monetize autonomous AI agents through Moltgate's paid inbox layer.**
- 
-> Turn your self-hosted OpenClaw agent into a revenue-generating machine - accept paid consulting requests, triage inbound by intent, and deliver AI-powered support services through priced message lanes.
- 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-FF6B6B?logo=lobster&logoColor=white)](https://github.com/openclaw/openclaw)
-[![Moltgate](https://img.shields.io/badge/Moltgate-Integrated-7C3AED)](https://moltgate.com)
- 
+[![CI](https://github.com/donny-devops/openclaw-revenue-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/donny-devops/openclaw-revenue-engine/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/donny-devops/openclaw-revenue-engine?style=flat-square)](https://codecov.io/gh/donny-devops/openclaw-revenue-engine)
+[![Release](https://img.shields.io/github/v/release/donny-devops/openclaw-revenue-engine?style=flat-square)](https://github.com/donny-devops/openclaw-revenue-engine/releases)
+[![License](https://img.shields.io/github/license/donny-devops/openclaw-revenue-engine?style=flat-square)](LICENSE)
+
+> Resilient payment routing, subscription billing engine, and automated financial webhook reconciliation pipeline.
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+flowchart LR
+    WebhookIngress[Payment Webhook Ingress] --> SignatureValidator[HMAC Signature Validator]
+    SignatureValidator --> Queue[(Redis / SQS Message Queue)]
+    Queue --> ReconciliationWorker[Reconciliation Worker]
+    ReconciliationWorker <--> Postgres[(Ledger & Event Store DB)]
+    ReconciliationWorker --> NotificationSink[ERP / Accounting Webhook Dispatch]
+```
+
+---
+
+## ⚡ Quickstart
+
+```bash
+# 1. Clone
+git clone https://github.com/donny-devops/openclaw-revenue-engine.git && cd openclaw-revenue-engine
+
+# 2. Configure Environment
+cp .env.example .env
+
+# 3. Launch Engine & Ledger Database
+docker compose up -d # Runs Engine API, Postgres Ledger, and Queue
+```
+
 ---
  
 ## What Is This?
