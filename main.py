@@ -22,6 +22,7 @@ from typing import Any
 DEFAULT_BASE_URL = "https://moltgate.com"
 REQUEST_TIMEOUT_SECONDS = 20
 ALLOWED_URL_SCHEMES = {"https"}
+LOCAL_URL_HOSTS = {"localhost", "127.0.0.1"}
 VALID_LOG_LEVELS = {
     "CRITICAL": logging.CRITICAL,
     "ERROR": logging.ERROR,
@@ -39,6 +40,7 @@ class PollConfig:
     lane: str | None
     dry_run: bool
     event_name: str
+    engine_url: str | None
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -68,6 +70,21 @@ def normalize_base_url(value: str | None) -> str:
     return base_url
 
 
+def normalize_engine_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    engine_url = value.rstrip("/")
+    parsed = urllib.parse.urlparse(engine_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme == "http" and host in LOCAL_URL_HOSTS:
+        return engine_url
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"REVENUE_ENGINE_URL must use https, got {parsed.scheme or 'missing scheme'}")
+    if not parsed.netloc:
+        raise ValueError("REVENUE_ENGINE_URL must include a host")
+    return engine_url
+
+
 def configure_logging() -> None:
     requested_level = (os.getenv("LOG_LEVEL") or "INFO").upper()
     level = VALID_LOG_LEVELS.get(requested_level, logging.INFO)
@@ -82,6 +99,7 @@ def load_config(args: argparse.Namespace) -> PollConfig:
         lane=normalize_lane(args.lane),
         dry_run=bool(args.dry_run),
         event_name=os.getenv("GITHUB_EVENT_NAME", ""),
+        engine_url=normalize_engine_url(os.getenv("REVENUE_ENGINE_URL")),
     )
 
 
@@ -116,6 +134,47 @@ def read_json(url: str, api_key: str) -> Any:
         return json.loads(body) if body else {}
 
 
+def extract_messages(payload: Any) -> list[Any]:
+    if isinstance(payload, dict):
+        messages = payload.get("results") or payload.get("messages") or []
+    elif isinstance(payload, list):
+        messages = payload
+    else:
+        messages = []
+    return messages if isinstance(messages, list) else []
+
+
+def classify_with_engine(engine_url: str, message: dict[str, Any]) -> dict[str, Any]:
+    body = str(message.get("body") or message.get("content") or message.get("text") or "").strip()
+    if not body:
+        raise ValueError("Paid request body is empty")
+
+    payload = json.dumps(
+        {
+            "title": str(message.get("title") or message.get("subject") or ""),
+            "body": body,
+            "lane": message.get("lane"),
+            "source": "moltgate",
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{engine_url}/revenue/classify",
+        data=payload,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "openclaw-revenue-engine-poll/1.0",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # nosec B310  # skipcq: BAN-B310
+        raw = response.read().decode("utf-8")
+        parsed = json.loads(raw) if raw else {}
+        if not isinstance(parsed, dict):
+            raise ValueError("Revenue engine returned a non-object classify payload")
+        return parsed
+
+
 def poll_inbox(config: PollConfig) -> int:
     if config.dry_run:
         logging.info("Dry run enabled; validated poll configuration without API call.")
@@ -128,12 +187,21 @@ def poll_inbox(config: PollConfig) -> int:
         raise RuntimeError("MOLTGATE_API_KEY is required for manual poll runs. Use dry_run=true to validate only.")
 
     payload = read_json(build_inbox_url(config), config.api_key)
-    if isinstance(payload, dict):
-        messages = payload.get("results") or payload.get("messages") or []
-    elif isinstance(payload, list):
-        messages = payload
-    else:
-        messages = []
+    messages = extract_messages(payload)
+
+    if config.engine_url:
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            try:
+                classification = classify_with_engine(config.engine_url, message)
+                logging.info(
+                    "Classified Moltgate message into %s / %s.",
+                    classification.get("classification", {}).get("lane", {}).get("slug", "unknown"),
+                    classification.get("classification", {}).get("service", {}).get("slug", "unknown"),
+                )
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Revenue engine classification failed: %s", exc)
 
     logging.info("Poll completed: %s new message(s)%s.", len(messages), f" for lane {config.lane}" if config.lane else "")
     return len(messages)
