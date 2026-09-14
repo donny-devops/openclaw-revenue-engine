@@ -14,7 +14,7 @@ mcpRouter.get('/tools', (_req: Request, res: Response) => {
 
 mcpRouter.post('/', requireOperatorAuth, async (req: Request, res: Response) => {
   const body = req.body as unknown;
-  if (!isRecord(body) || typeof body.method !== 'string') {
+  if (!isRecord(body) || body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
     res.status(400).json({ error: 'Invalid MCP JSON-RPC payload' });
     return;
   }

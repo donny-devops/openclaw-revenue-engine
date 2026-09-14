@@ -119,4 +119,14 @@ describe('money collection routes', () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'Invalid MCP tool call payload' });
   });
+
+  it('rejects MCP requests without a JSON-RPC 2.0 envelope', async () => {
+    const res = await request(app).post('/mcp').send({
+      id: 3,
+      method: 'tools/list',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid MCP JSON-RPC payload' });
+  });
 });
