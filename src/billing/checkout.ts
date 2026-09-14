@@ -95,6 +95,9 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
   });
 
   if (!session.url) {
+    markPaymentStatus(payment.id, 'failed', {
+      stripe_session_id: session.id,
+    });
     throw new Error('Stripe did not return a checkout URL');
   }
 

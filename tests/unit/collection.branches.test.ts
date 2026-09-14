@@ -8,6 +8,7 @@ import { createLaneCheckout, simulatePaymentCollection } from '../../src/billing
 import {
   createPayment,
   findPaymentByStripeSession,
+  listPayments,
   resetLedger,
   updatePayment,
 } from '../../src/billing/ledger';
@@ -88,6 +89,12 @@ describe('live Stripe checkout and error branches', () => {
         customer_email: 'buyer@example.com',
       }),
     ).rejects.toThrow('Stripe did not return a checkout URL');
+    expect(listPayments()).toEqual([
+      expect.objectContaining({
+        status: 'failed',
+        stripe_session_id: 'cs_missing_url',
+      }),
+    ]);
   });
 
   it('rejects simulated collection in production and for live payments', async () => {

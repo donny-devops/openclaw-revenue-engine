@@ -122,6 +122,25 @@ describe('billing ledger and usage', () => {
     expect(replay.id).toBe(event.id);
     expect(getUsageSummary('tenant_1').totals_by_metric.api_call).toBe(3);
   });
+
+  it('scopes usage idempotency keys per tenant', () => {
+    const first = recordUsageEvent({
+      tenant_id: 'tenant_1',
+      metric_type: 'api_call',
+      quantity: 1,
+      idempotency_key: 'shared',
+    });
+    const second = recordUsageEvent({
+      tenant_id: 'tenant_2',
+      metric_type: 'api_call',
+      quantity: 2,
+      idempotency_key: 'shared',
+    });
+
+    expect(second.id).not.toBe(first.id);
+    expect(getUsageSummary('tenant_1').totals_by_metric.api_call).toBe(1);
+    expect(getUsageSummary('tenant_2').totals_by_metric.api_call).toBe(2);
+  });
 });
 
 describe('checkout collection', () => {
@@ -192,6 +211,13 @@ describe('operator auth', () => {
   it('rejects a missing bearer token when auth is configured', () => {
     process.env.OPERATOR_API_KEY = 'operator-secret';
     const result = run({ headers: {} });
+    expect(result.nextCalled).toBe(false);
+    expect(result.captured.statusCode).toBe(401);
+  });
+
+  it('rejects authorization values without a bearer separator', () => {
+    process.env.OPERATOR_API_KEY = 'operator-secret';
+    const result = run({ headers: { authorization: 'Beareroperator-secret' } });
     expect(result.nextCalled).toBe(false);
     expect(result.captured.statusCode).toBe(401);
   });

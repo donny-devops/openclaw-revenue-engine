@@ -1,4 +1,4 @@
-import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
+import { listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
 import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
@@ -107,6 +107,25 @@ const approvalRequiredTools = new Set(revenueGatewayConfig?.human_approval_requi
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 
+export const validateMcpRequest = (request: unknown): string | undefined => {
+  if (!isRecord(request) || request.jsonrpc !== '2.0' || typeof request.method !== 'string') {
+    return 'Invalid MCP JSON-RPC payload';
+  }
+
+  if (request.method === 'tools/call') {
+    const params = request.params;
+    if (
+      !isRecord(params) ||
+      typeof params.name !== 'string' ||
+      ('arguments' in params && params.arguments !== undefined && !isRecord(params.arguments))
+    ) {
+      return 'Invalid MCP tool call payload';
+    }
+  }
+
+  return undefined;
+};
+
 async function callTool(name: string, args: Record<string, unknown> = {}): Promise<unknown> {
   switch (name) {
     case 'list_lanes':
@@ -124,8 +143,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
         lane: asString(args.lane),
         service: asString(args.service),
       });
-      const agentPlan = assignAgents(classification.service.slug);
-      return { classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan } };
+      return { classification };
     }
     case 'create_checkout': {
       const body = asString(args.body);

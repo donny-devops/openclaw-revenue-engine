@@ -1,31 +1,9 @@
 import { Router, Request, Response } from 'express';
 
 import { requireOperatorAuth } from '../middleware/auth';
-import { handleMcpRequest, listMcpTools, McpRequest } from '../mcp/server';
+import { handleMcpRequest, listMcpTools, McpRequest, validateMcpRequest } from '../mcp/server';
 
 const mcpRouter = Router();
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const validateMcpRequest = (body: unknown): string | undefined => {
-  if (!isRecord(body) || body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
-    return 'Invalid MCP JSON-RPC payload';
-  }
-
-  if (body.method === 'tools/call') {
-    const params = body.params;
-    if (
-      !isRecord(params) ||
-      typeof params.name !== 'string' ||
-      ('arguments' in params && params.arguments !== undefined && !isRecord(params.arguments))
-    ) {
-      return 'Invalid MCP tool call payload';
-    }
-  }
-
-  return undefined;
-};
 
 mcpRouter.get('/tools', (_req: Request, res: Response) => {
   res.json({ tools: listMcpTools() });

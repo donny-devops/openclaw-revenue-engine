@@ -21,7 +21,11 @@ const readBearer = (req: Request): string | undefined => {
   if (trimmed.slice(0, 6).toLowerCase() !== 'bearer') {
     return undefined;
   }
-  const token = trimmed.slice(6).trim();
+  const remainder = trimmed.slice(6);
+  if (!remainder || remainder[0]?.trim() !== '') {
+    return undefined;
+  }
+  const token = remainder.trim();
   return token.length > 0 ? token : undefined;
 };
 
