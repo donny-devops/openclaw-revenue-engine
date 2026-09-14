@@ -23,6 +23,11 @@ export function rememberStripeEvent(eventId: string): boolean {
   return true;
 }
 
+export function forgetStripeEvent(eventId: string): void {
+  if (!eventId) return;
+  processedStripeEvents.delete(eventId);
+}
+
 export function createPayment(input: {
   lane: string;
   service: string;

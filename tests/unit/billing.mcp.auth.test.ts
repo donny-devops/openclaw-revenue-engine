@@ -10,6 +10,7 @@ import {
   markPaymentStatus,
   recordInvoicePayment,
   rememberStripeEvent,
+  forgetStripeEvent,
   resetLedger,
 } from '../../src/billing/ledger';
 import { createLaneCheckout, simulatePaymentCollection } from '../../src/billing/checkout';
@@ -61,6 +62,8 @@ describe('billing ledger and usage', () => {
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);
+    forgetStripeEvent('evt_1');
+    expect(rememberStripeEvent('evt_1')).toBe(true);
     const first = recordInvoicePayment({
       stripe_invoice_id: 'in_1',
       amount_cents: 4900,

@@ -85,6 +85,20 @@ def normalize_engine_url(value: str | None) -> str | None:
     return engine_url
 
 
+def engine_egress_endpoint(value: str | None) -> str | None:
+    """Return host:port for GitHub Actions harden-runner allowlists."""
+    engine_url = normalize_engine_url(value)
+    if not engine_url:
+        return None
+    parsed = urllib.parse.urlparse(engine_url)
+    host = parsed.hostname
+    if not host:
+        raise ValueError("REVENUE_ENGINE_URL must include a host")
+    scheme = (parsed.scheme or "https").lower()
+    port = parsed.port or (80 if scheme == "http" else 443)
+    return f"{host}:{port}"
+
+
 def configure_logging() -> None:
     requested_level = (os.getenv("LOG_LEVEL") or "INFO").upper()
     level = VALID_LOG_LEVELS.get(requested_level, logging.INFO)

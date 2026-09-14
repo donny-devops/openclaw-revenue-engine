@@ -39,10 +39,7 @@ const isInputError = (message: string): boolean => {
 };
 
 revenueRouter.get('/summary', (_req: Request, res: Response) => {
-  res.json({
-    summary: getRevenueSummary(),
-    earnings: getEarningsSnapshot(),
-  });
+  res.json({ summary: getRevenueSummary() });
 });
 
 revenueRouter.get('/lanes', (_req: Request, res: Response) => {

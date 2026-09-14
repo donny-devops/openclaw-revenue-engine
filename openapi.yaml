@@ -14,10 +14,10 @@ paths:
           description: Service is up
   /revenue/summary:
     get:
-      summary: Lane catalog summary plus live earnings snapshot
+      summary: Public lane catalog summary
       responses:
         "200":
-          description: Summary payload
+          description: Enabled lanes, services, and price range
   /revenue/checkout:
     post:
       summary: Create a Stripe or simulated checkout session for a paid lane
@@ -53,6 +53,8 @@ paths:
       responses:
         "200":
           description: Collected and pending revenue
+        "401":
+          description: Missing or invalid operator credentials
   /usage/events:
     post:
       summary: Record an idempotent usage event

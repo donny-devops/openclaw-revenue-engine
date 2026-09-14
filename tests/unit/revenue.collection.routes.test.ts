@@ -17,6 +17,8 @@ describe('money collection routes', () => {
   beforeEach(() => {
     resetLedger();
     resetUsageMeter();
+    delete process.env.OPERATOR_API_KEY;
+    delete process.env.JWT_SECRET;
   });
 
   it('creates a checkout session and collects simulated payment', async () => {
@@ -39,6 +41,34 @@ describe('money collection routes', () => {
     const earnings = await request(app).get('/revenue/earnings');
     expect(earnings.status).toBe(200);
     expect(earnings.body.earnings.collected_cents).toBe(2900);
+  });
+
+  it('does not expose earnings on the public summary route', async () => {
+    process.env.OPERATOR_API_KEY = 'operator-summary-secret';
+
+    const checkout = await request(app).post('/revenue/checkout').send({
+      title: 'Repository triage',
+      body: 'Please review my GitHub portfolio repository and README.',
+      customer_email: 'buyer@example.com',
+    });
+    expect(checkout.status).toBe(201);
+
+    await request(app).post(`/revenue/payments/${checkout.body.payment.id}/collect`).send();
+
+    const summary = await request(app).get('/revenue/summary');
+    expect(summary.status).toBe(200);
+    expect(summary.body.summary.enabled_lanes).toBeGreaterThan(0);
+    expect(summary.body.earnings).toBeUndefined();
+    expect(summary.body).not.toHaveProperty('collected_cents');
+
+    const denied = await request(app).get('/revenue/earnings');
+    expect(denied.status).toBe(401);
+
+    const allowed = await request(app)
+      .get('/revenue/earnings')
+      .set('Authorization', 'Bearer operator-summary-secret');
+    expect(allowed.status).toBe(200);
+    expect(allowed.body.earnings.collected_cents).toBe(2900);
   });
 
   it('rejects checkout without a customer email', async () => {

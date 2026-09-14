@@ -33,6 +33,19 @@ class PollRunnerTests(unittest.TestCase):
         self.assertEqual(config.engine_url, "https://engine.example")
         self.assertEqual(config.lane, "real-offer")
 
+    def test_engine_egress_endpoint_defaults_https_port(self) -> None:
+        self.assertEqual(main.engine_egress_endpoint("https://engine.example/revenue"), "engine.example:443")
+
+    def test_engine_egress_endpoint_keeps_explicit_port(self) -> None:
+        self.assertEqual(main.engine_egress_endpoint("https://engine.example:8443"), "engine.example:8443")
+
+    def test_engine_egress_endpoint_allows_localhost_http(self) -> None:
+        self.assertEqual(main.engine_egress_endpoint("http://localhost:3000/"), "localhost:3000")
+
+    def test_engine_egress_endpoint_empty_is_none(self) -> None:
+        self.assertIsNone(main.engine_egress_endpoint(""))
+        self.assertIsNone(main.engine_egress_endpoint(None))
+
 
 if __name__ == "__main__":
     unittest.main()

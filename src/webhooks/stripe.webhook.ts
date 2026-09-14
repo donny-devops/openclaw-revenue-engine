@@ -8,6 +8,7 @@ import {
   markPaymentStatus,
   recordInvoicePayment,
   rememberStripeEvent,
+  forgetStripeEvent,
 } from '../billing/ledger';
 import { redactSecrets } from '../security/redact';
 
@@ -103,6 +104,7 @@ export function stripeWebhookHandler(
     }
     res.status(200).json({ received: true, eventType: event.type });
   } catch (err) {
+    forgetStripeEvent(event.id);
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Error processing Stripe webhook ${event.type}: ${message}`);
     res.status(500).json({ error: 'Internal webhook processing error' });
