@@ -25,29 +25,31 @@ This document tracks the planned development milestones for `openclaw-revenue-en
 
 ---
 
-## Milestone 2 — Usage Metering (Next)
+## Milestone 2 — Usage Metering (Completed)
 
 **Goal:** Implement the core domain service for tracking agent usage events.
 
-- [ ] `UsageEvent` data model and schema
-- [ ] Usage event ingestion API (`POST /usage/events`)
+- [x] `UsageEvent` data model and schema
+- [x] Usage event ingestion API (`POST /usage/events`)
 - [ ] PostgreSQL integration via connection pool
-- [ ] Idempotent event recording (duplicate prevention)
-- [ ] Usage aggregation queries (by agent, by period)
-- [ ] Unit tests for metering service
-- [ ] Integration tests for usage API
+- [x] Idempotent event recording (duplicate prevention)
+- [x] Usage aggregation queries (by agent, by period)
+- [x] Unit tests for metering service
+- [x] Integration tests for usage API
 
 ---
 
-## Milestone 3 — Stripe Billing Integration
+## Milestone 3 — Stripe Billing Integration (In progress)
 
 **Goal:** Connect usage data to Stripe billing workflows.
 
+- [x] Stripe Checkout session creation for paid lanes
+- [x] Payment ledger for succeeded/failed collection events
 - [ ] Stripe customer creation and management
 - [ ] Usage-based subscription metering via Stripe Meters API
-- [ ] Subscription lifecycle event handlers (created, updated, cancelled)
-- [ ] Payment succeeded/failed webhook processing
-- [ ] Checkout session completion handling
+- [x] Subscription lifecycle event handlers (created, updated, cancelled)
+- [x] Payment succeeded/failed webhook processing
+- [x] Checkout session completion handling
 - [ ] Stripe customer portal session generation
 
 ---
