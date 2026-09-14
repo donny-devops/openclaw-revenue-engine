@@ -12,6 +12,11 @@
 
 import type { Request, Response } from 'express';
 import {
+  createPayment,
+  getPayment,
+  resetLedger,
+} from '../../src/billing/ledger';
+import {
   buildStripePayload,
   STRIPE_TEST_SECRET_KEY,
   STRIPE_TEST_WEBHOOK_SECRET,
@@ -253,5 +258,105 @@ describe('stripeWebhookHandler — constructEvent arguments', () => {
       STRIPE_TEST_WEBHOOK_SECRET
     );
     consoleSpy.mockRestore();
+  });
+});
+
+describe('stripeWebhookHandler — delayed Checkout settlement', () => {
+  beforeEach(() => {
+    resetLedger();
+    mockConstructEvent.mockReset();
+  });
+
+  const sessionObject = (overrides: Record<string, unknown> = {}) => ({
+    id: 'cs_ach_01',
+    customer: 'cus_ach_01',
+    payment_status: 'unpaid',
+    amount_total: 2900,
+    currency: 'usd',
+    payment_intent: 'pi_ach_01',
+    metadata: { payment_id: '' },
+    ...overrides,
+  });
+
+  const seedPendingCheckout = () => {
+    const payment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      customer_email: 'buyer@example.com',
+      stripe_session_id: 'cs_ach_01',
+      simulated: false,
+    });
+    return payment;
+  };
+
+  const invoke = (eventType: string, dataObject: Record<string, unknown>) => {
+    mockConstructEvent.mockReturnValueOnce({
+      id: `evt_${eventType}_${Date.now()}`,
+      type: eventType,
+      data: { object: dataObject },
+    });
+    const captured = mockResponse();
+    stripeWebhookHandler(makeStripeReq(eventType, dataObject), captured.res as Response);
+    return captured;
+  };
+
+  it('leaves ACH Checkout unpaid after checkout.session.completed', () => {
+    const payment = seedPendingCheckout();
+    const session = sessionObject({ metadata: { payment_id: payment.id } });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const result = invoke('checkout.session.completed', session);
+
+    expect(result.statusCode).toBe(200);
+    expect(getPayment(payment.id)?.status).toBe('pending');
+    logSpy.mockRestore();
+  });
+
+  it('marks the ledger paid when ACH later succeeds', () => {
+    const payment = seedPendingCheckout();
+    const session = sessionObject({
+      payment_status: 'paid',
+      metadata: { payment_id: payment.id },
+    });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    invoke('checkout.session.completed', sessionObject({ metadata: { payment_id: payment.id } }));
+    const result = invoke('checkout.session.async_payment_succeeded', session);
+
+    expect(result.statusCode).toBe(200);
+    expect(getPayment(payment.id)?.status).toBe('paid');
+    expect(getPayment(payment.id)?.stripe_payment_intent_id).toBe('pi_ach_01');
+    logSpy.mockRestore();
+  });
+
+  it('marks the ledger failed when ACH later fails', () => {
+    const payment = seedPendingCheckout();
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    invoke('checkout.session.completed', sessionObject({ metadata: { payment_id: payment.id } }));
+    const result = invoke(
+      'checkout.session.async_payment_failed',
+      sessionObject({ payment_status: 'unpaid', metadata: { payment_id: payment.id } }),
+    );
+
+    expect(result.statusCode).toBe(200);
+    expect(getPayment(payment.id)?.status).toBe('failed');
+    logSpy.mockRestore();
+  });
+
+  it('matches a delayed ACH event by Stripe session id when metadata is missing', () => {
+    const payment = seedPendingCheckout();
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const result = invoke(
+      'checkout.session.async_payment_succeeded',
+      sessionObject({ payment_status: 'paid', metadata: {} }),
+    );
+
+    expect(result.statusCode).toBe(200);
+    expect(getPayment(payment.id)?.status).toBe('paid');
+    logSpy.mockRestore();
   });
 });
