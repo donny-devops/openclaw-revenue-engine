@@ -16,6 +16,7 @@ env:
   GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
   JWT_SECRET: ci_jwt_secret_placeholder
   OPERATOR_API_KEY: ci_operator_api_key_placeholder
+
 permissions:
   contents: read
 
@@ -43,20 +44,20 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-- name: Install dependencies
-  run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-- name: Lint
-  run: npm run lint --if-present
+      - name: Lint
+        run: npm run lint --if-present
 
-- name: Type check
-  run: npm run type-check --if-present
+      - name: Type check
+        run: npm run type-check --if-present
 
-- name: Unit and integration tests
-  run: npm test
+      - name: Unit and integration tests
+        run: npm test
 
-- name: Build
-  run: npm run build --if-present
+      - name: Build
+        run: npm run build --if-present
 
       - name: Upload coverage
         if: always()
@@ -66,6 +67,7 @@ jobs:
           path: coverage
           if-no-files-found: ignore
           retention-days: 14
+
   python-poll:
     name: Poll runner
     runs-on: ubuntu-latest

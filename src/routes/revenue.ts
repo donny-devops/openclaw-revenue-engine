@@ -69,7 +69,7 @@ revenueRouter.get('/payments', requireOperatorAuth, (_req: Request, res: Respons
   res.json({ payments: listPayments() });
 });
 
-revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
+revenueRouter.get('/payments/:id', requireOperatorAuth, (req: Request, res: Response) => {
   const payment = getPayment(req.params.id);
   if (!payment) {
     res.status(404).json({ error: 'Payment not found' });
@@ -78,7 +78,7 @@ revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
   res.json({ payment });
 });
 
-revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
+revenueRouter.post('/payments/:id/collect', requireOperatorAuth, (req: Request, res: Response) => {
   try {
     const payment = simulatePaymentCollection(req.params.id);
     res.json({ payment });

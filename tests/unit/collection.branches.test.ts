@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { NextFunction, Request, Response } from 'express';
-import request from 'supertest';
+import request, { type Test } from 'supertest';
 
 import { requireOperatorAuth } from '../../src/middleware/auth';
 import { getAgent } from '../../src/agents/orchestrator';
@@ -33,10 +33,14 @@ beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_live_checkout_key_123456';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_live_checkout_placeholder';
   process.env.GITHUB_WEBHOOK_SECRET = 'github_live_checkout_placeholder';
+  process.env.OPERATOR_API_KEY = 'operator-secret';
   process.env.LOG_LEVEL = 'silent';
 });
 
 import app from '../../src/index';
+
+const withOperatorAuth = (req: Test) =>
+  req.set('Authorization', ['Bearer', process.env.OPERATOR_API_KEY ?? 'operator-secret'].join(' '));
 
 describe('live Stripe checkout and error branches', () => {
   beforeEach(() => {
@@ -108,13 +112,13 @@ describe('live Stripe checkout and error branches', () => {
   });
 
   it('returns 404 for unknown payments and 400 for invalid usage', async () => {
-    const missing = await request(app).get('/revenue/payments/pay_missing');
+    const missing = await withOperatorAuth(request(app).get('/revenue/payments/pay_missing'));
     expect(missing.status).toBe(404);
 
-    const collect = await request(app).post('/revenue/payments/pay_missing/collect');
+    const collect = await withOperatorAuth(request(app).post('/revenue/payments/pay_missing/collect'));
     expect([400, 404]).toContain(collect.status);
 
-    const usage = await request(app).post('/usage/events').send({ tenant_id: 't1' });
+    const usage = await withOperatorAuth(request(app).post('/usage/events')).send({ tenant_id: 't1' });
     expect(usage.status).toBe(400);
 
     const classify = await request(app).post('/revenue/classify').send({
@@ -139,7 +143,7 @@ describe('live Stripe checkout and error branches', () => {
     const payments = await handleMcpRequest({ method: 'tools/call', id: 6, params: { name: 'list_payments' } });
     const unknown = await handleMcpRequest({ method: 'tools/call', id: 7, params: { name: 'nope' } });
     const badMethod = await handleMcpRequest({ method: 'not-a-method', id: 8 });
-    const mcpHttp = await request(app).post('/mcp').send({ jsonrpc: '2.0', id: 1 });
+    const mcpHttp = await withOperatorAuth(request(app).post('/mcp')).send({ jsonrpc: '2.0', id: 1 });
 
     expect(lanes.error).toBeUndefined();
     expect(services.error).toBeUndefined();
