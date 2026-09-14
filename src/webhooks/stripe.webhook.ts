@@ -4,7 +4,10 @@ import Stripe from 'stripe';
 import { requireEnv } from '../lib/env';
 import {
   findPaymentByStripeSession,
+  forgetStripeEvent,
+  completeStripeEvent,
   getPayment,
+  isStripeEventProcessed,
   markPaymentStatus,
   recordInvoicePayment,
   rememberStripeEvent,
@@ -71,7 +74,11 @@ export function stripeWebhookHandler(
   }
 
   if (!rememberStripeEvent(event.id)) {
-    res.status(200).json({ received: true, eventType: event.type, duplicate: true });
+    if (isStripeEventProcessed(event.id)) {
+      res.status(200).json({ received: true, eventType: event.type, duplicate: true });
+      return;
+    }
+    res.status(409).json({ received: false, eventType: event.type, in_flight: true });
     return;
   }
 
@@ -101,8 +108,10 @@ export function stripeWebhookHandler(
       default:
         console.log(`Unhandled Stripe event type: ${event.type}`);
     }
+    completeStripeEvent(event.id);
     res.status(200).json({ received: true, eventType: event.type });
   } catch (err) {
+    forgetStripeEvent(event.id);
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Error processing Stripe webhook ${event.type}: ${message}`);
     res.status(500).json({ error: 'Internal webhook processing error' });

@@ -23,7 +23,34 @@ concurrency:
   group: revenue-engine-poll
   cancel-in-progress: false  # Do not kill in-flight inbox processing mid-poll
 jobs:
+  resolve_engine_endpoint:
+    name: Resolve engine egress
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      endpoint: ${{ steps.resolve.outputs.endpoint }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+            raw.githubusercontent.com:443
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Parse revenue engine host
+        id: resolve
+        env:
+          REVENUE_ENGINE_URL: ${{ secrets.REVENUE_ENGINE_URL }}
+        run: |
+          set -euo pipefail
+          endpoint="$(python3 -c 'import os, main; print(main.engine_egress_endpoint(os.getenv("REVENUE_ENGINE_URL")) or "")')"
+          echo "endpoint=${endpoint}" >> "$GITHUB_OUTPUT"
   poll:
+    needs: resolve_engine_endpoint
     runs-on: ubuntu-latest
     timeout-minutes: 5  # Concurrency guard prevents overlap; allow full poll window
     steps:
@@ -40,6 +67,7 @@ jobs:
             objects.githubusercontent.com:443
             pypi.org:443
             raw.githubusercontent.com:443
+            ${{ needs.resolve_engine_endpoint.outputs.endpoint || 'pypi.org:443' }}
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Set up Python

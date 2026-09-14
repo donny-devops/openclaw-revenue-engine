@@ -3,6 +3,7 @@ import { EarningsSnapshot, PaymentRecord, PaymentStatus } from './types';
 
 const payments = new Map<string, PaymentRecord>();
 const processedStripeEvents = new Set<string>();
+const inFlightStripeEvents = new Set<string>();
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -14,13 +15,30 @@ const clone = (record: PaymentRecord): PaymentRecord => ({
 export function resetLedger(): void {
   payments.clear();
   processedStripeEvents.clear();
+  inFlightStripeEvents.clear();
 }
 
 export function rememberStripeEvent(eventId: string): boolean {
   if (!eventId) return true;
-  if (processedStripeEvents.has(eventId)) return false;
-  processedStripeEvents.add(eventId);
+  if (processedStripeEvents.has(eventId) || inFlightStripeEvents.has(eventId)) return false;
+  inFlightStripeEvents.add(eventId);
   return true;
+}
+
+export function completeStripeEvent(eventId: string): void {
+  if (!eventId) return;
+  inFlightStripeEvents.delete(eventId);
+  processedStripeEvents.add(eventId);
+}
+
+export function forgetStripeEvent(eventId: string): void {
+  if (!eventId) return;
+  inFlightStripeEvents.delete(eventId);
+  processedStripeEvents.delete(eventId);
+}
+
+export function isStripeEventProcessed(eventId: string): boolean {
+  return Boolean(eventId) && processedStripeEvents.has(eventId);
 }
 
 export function createPayment(input: {

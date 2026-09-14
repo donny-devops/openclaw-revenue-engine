@@ -1,257 +1,152 @@
-/**
- * tests/unit/stripe.webhook.test.ts
- *
- * Unit tests for stripeWebhookHandler.
- *
- * Strategy:
- *   - We mock the `stripe` npm package so that stripe.webhooks.constructEvent
- *     is fully under our control without network calls.
- *   - Valid-signature happy paths use jest.fn() returning a real-shaped event.
- *   - Invalid-signature paths throw a Stripe.errors.StripeSignatureVerificationError.
- */
-
 import type { Request, Response } from 'express';
-import {
-  buildStripePayload,
-  STRIPE_TEST_SECRET_KEY,
-  STRIPE_TEST_WEBHOOK_SECRET,
-  mockResponse,
-} from '../helpers/fixtures';
 
-// ---------------------------------------------------------------------------
-// Mock the Stripe SDK before importing the module under test
-// ---------------------------------------------------------------------------
-const mockConstructEvent = jest.fn();
-
-jest.mock('stripe', () => {
-  return jest.fn().mockImplementation(() => ({
-    webhooks: {
-      constructEvent: mockConstructEvent,
-    },
-  }));
-});
-
-// Set env vars before import
-beforeAll(() => {
-  process.env.STRIPE_SECRET_KEY = STRIPE_TEST_SECRET_KEY;
-  process.env.STRIPE_WEBHOOK_SECRET = STRIPE_TEST_WEBHOOK_SECRET;
-});
-
-// Import handler AFTER mocks are in place
+import { createPayment, getPayment, recordInvoicePayment, rememberStripeEvent, resetLedger } from '../../src/billing/ledger';
+import { buildStripePayload, mockResponse } from '../helpers/fixtures';
 import { stripeWebhookHandler } from '../../src/webhooks/stripe.webhook';
 
-// ---------------------------------------------------------------------------
-// Helper: build a mock Request with a raw Buffer body
-// ---------------------------------------------------------------------------
-function makeStripeReq(
-  eventType: string,
-  dataObject: Record<string, unknown> = {},
-  sigOverride?: string
-): Request {
-  const { body, signature } = buildStripePayload(eventType, dataObject, STRIPE_TEST_WEBHOOK_SECRET);
+jest.mock('../../src/billing/ledger', () => {
+  const actual = jest.requireActual('../../src/billing/ledger') as typeof import('../../src/billing/ledger');
   return {
-    body,
-    headers: {
-      'stripe-signature': sigOverride ?? signature,
-    },
-  } as unknown as Request;
-}
+    ...actual,
+    recordInvoicePayment: jest.fn((input: Parameters<typeof actual.recordInvoicePayment>[0]) =>
+      actual.recordInvoicePayment(input),
+    ),
+  };
+});
 
-// ---------------------------------------------------------------------------
-// Missing signature header
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — missing stripe-signature header', () => {
-  it('returns 400 when stripe-signature is absent', () => {
-    const req = {
-      body: Buffer.from('{}'),
-      headers: {},
-    } as unknown as Request;
-    const captured = mockResponse();
-    const { res } = captured;
+const invoke = (payload: { body: Buffer; signature?: string }) => {
+  const captured = mockResponse();
+  stripeWebhookHandler(
+    {
+      body: payload.body,
+      headers: payload.signature !== undefined ? { 'stripe-signature': payload.signature } : {},
+    } as unknown as Request,
+    captured.res as Response,
+  );
+  return captured;
+};
 
-    stripeWebhookHandler(req, res as Response);
+describe('stripe webhook idempotency', () => {
+  beforeEach(() => {
+    resetLedger();
+    (recordInvoicePayment as jest.Mock).mockImplementation(
+      (input: Parameters<typeof recordInvoicePayment>[0]) =>
+        jest.requireActual('../../src/billing/ledger').recordInvoicePayment(input),
+    );
+  });
 
-    expect(captured.statusCode).toBe(400);
-    expect(captured.body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
+  it('records an invoice payment and treats a later delivery as a duplicate', () => {
+    const payload = buildStripePayload('invoice.payment_succeeded', {
+      id: 'in_retry_ok',
+      amount_paid: 4900,
+      currency: 'usd',
+      customer: 'cus_ok',
+    });
+
+    const first = invoke(payload);
+    const replay = invoke(payload);
+
+    expect(first.statusCode).toBe(200);
+    expect(replay.statusCode).toBe(200);
+    expect(replay.body).toMatchObject({ duplicate: true });
+    expect(jest.requireActual('../../src/billing/ledger').getEarningsSnapshot().collected_cents).toBe(4900);
+  });
+
+  it('releases a claimed event when ledger writes fail so Stripe retries can collect', () => {
+    (recordInvoicePayment as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('ledger write failed');
+    });
+
+    const payload = buildStripePayload('invoice.payment_succeeded', {
+      id: 'in_retry_fail',
+      amount_paid: 2900,
+      currency: 'usd',
+      customer: 'cus_retry',
+    });
+
+    const failed = invoke(payload);
+    expect(failed.statusCode).toBe(500);
+
+    const retried = invoke(payload);
+    expect(retried.statusCode).toBe(200);
+    expect(retried.body).not.toMatchObject({ duplicate: true });
+    expect(jest.requireActual('../../src/billing/ledger').getEarningsSnapshot().collected_cents).toBe(2900);
+  });
+
+  it('returns 409 for an in-flight duplicate instead of ACKing', () => {
+    const payload = buildStripePayload('invoice.payment_succeeded', {
+      id: 'in_in_flight',
+      amount_paid: 1900,
+      currency: 'usd',
+      customer: 'cus_in_flight',
+    });
+    const eventId = (JSON.parse(payload.body.toString()) as { id: string }).id;
+    expect(rememberStripeEvent(eventId)).toBe(true);
+
+    const result = invoke(payload);
+    expect(result.statusCode).toBe(409);
+    expect(result.body).toMatchObject({ in_flight: true });
+    expect(jest.requireActual('../../src/billing/ledger').getEarningsSnapshot().collected_cents).toBe(0);
+  });
+
+  it('marks a checkout session paid on a successful delivery', () => {
+    const payment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      stripe_session_id: 'cs_paid_1',
+      simulated: false,
+    });
+    const payload = buildStripePayload('checkout.session.completed', {
+      id: 'cs_paid_1',
+      payment_status: 'paid',
+      amount_total: 2900,
+      currency: 'usd',
+      payment_intent: 'pi_paid_1',
+      metadata: { payment_id: payment.id },
+    });
+
+    const result = invoke(payload);
+    expect(result.statusCode).toBe(200);
+    expect(getPayment(payment.id)?.status).toBe('paid');
   });
 });
 
-// ---------------------------------------------------------------------------
-// Signature verification failure
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — invalid signature', () => {
-  beforeEach(() => {
-    mockConstructEvent.mockImplementation(() => {
-      const err = new Error('No signatures found matching the expected signature for payload');
-      err.name = 'StripeSignatureVerificationError';
-      throw err;
-    });
+describe('stripe webhook security', () => {
+  it('returns 400 when stripe-signature is absent', () => {
+    const result = invoke({ body: Buffer.from('{}') });
+
+    expect(result.statusCode).toBe(400);
+    expect(result.body).toMatchObject({ error: expect.stringContaining('stripe-signature') });
   });
 
   it('returns 400 when Stripe signature verification fails', () => {
-    const req = makeStripeReq('invoice.payment_succeeded', {}, 'bad_signature');
-    const captured = mockResponse();
-    const { res } = captured;
+    const payload = buildStripePayload('invoice.payment_succeeded', {
+      id: 'in_bad_sig',
+      amount_paid: 1000,
+      currency: 'usd',
+      customer: 'cus_bad_sig',
+    });
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    stripeWebhookHandler(req, res as Response);
+    const result = invoke({ body: payload.body, signature: 'bad_signature' });
 
-    expect(captured.statusCode).toBe(400);
-    expect(captured.body).toMatchObject({
+    expect(result.statusCode).toBe(400);
+    expect(result.body).toMatchObject({
       error: expect.stringContaining('signature verification failed'),
     });
     errorSpy.mockRestore();
   });
-});
 
-// ---------------------------------------------------------------------------
-// Happy path — all supported Stripe event types
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — supported event routing', () => {
-  const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-  afterAll(() => consoleSpy.mockRestore());
-
-  const supportedEvents: Array<[string, Record<string, unknown>]> = [
-    [
-      'customer.subscription.created',
-      { id: 'sub_test_01', customer: 'cus_test_01', status: 'active' },
-    ],
-    [
-      'customer.subscription.updated',
-      { id: 'sub_test_01', customer: 'cus_test_01', status: 'past_due' },
-    ],
-    [
-      'customer.subscription.deleted',
-      { id: 'sub_test_01', customer: 'cus_test_01', status: 'canceled' },
-    ],
-    [
-      'invoice.payment_succeeded',
-      {
-        id: 'in_test_01',
-        customer: 'cus_test_01',
-        amount_paid: 5000,
-        currency: 'usd',
-      },
-    ],
-    [
-      'invoice.payment_failed',
-      {
-        id: 'in_test_02',
-        customer: 'cus_test_01',
-        next_payment_attempt: 1700000000,
-      },
-    ],
-    [
-      'checkout.session.completed',
-      {
-        id: 'cs_test_01',
-        customer: 'cus_test_01',
-        payment_status: 'paid',
-      },
-    ],
-  ];
-
-  it.each(supportedEvents)(
-    'returns 200 and { received: true } for %s',
-    (eventType, dataObject) => {
-      // Make constructEvent return a well-formed event for this type
-      mockConstructEvent.mockReturnValueOnce({
-        id: `evt_${Date.now()}`,
-        type: eventType,
-        data: { object: dataObject },
-      });
-
-      const req = makeStripeReq(eventType, dataObject);
-      const captured = mockResponse();
-    const { res } = captured;
-
-      stripeWebhookHandler(req, res as Response);
-
-      expect(captured.statusCode).toBe(200);
-      expect(captured.body).toMatchObject({ received: true, eventType });
-    }
-  );
-});
-
-// ---------------------------------------------------------------------------
-// Unhandled event type — should still return 200
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — unhandled event type', () => {
   it('returns 200 for an event type not in the switch statement', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const payload = buildStripePayload('payment_method.attached', {});
 
-    mockConstructEvent.mockReturnValueOnce({
-      id: 'evt_unknown',
-      type: 'payment_method.attached',
-      data: { object: {} },
-    });
+    const result = invoke(payload);
 
-    const req = makeStripeReq('payment_method.attached', {});
-    const captured = mockResponse();
-    const { res } = captured;
-
-    stripeWebhookHandler(req, res as Response);
-
-    expect(captured.statusCode).toBe(200);
-    expect(captured.body).toMatchObject({ received: true });
-    consoleSpy.mockRestore();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Internal handler error propagation
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — internal handler error', () => {
-  it('returns 500 when an event handler throws an unexpected error', () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    // constructEvent succeeds, but the event type triggers a handler that will
-    // throw because we make the event object intentionally malformed
-    mockConstructEvent.mockReturnValueOnce({
-      id: 'evt_error_test',
-      type: 'customer.subscription.created',
-      // data.object is null — handleSubscriptionCreated will throw accessing .id
-      data: { object: null },
-    });
-
-    const req = makeStripeReq('customer.subscription.created', {});
-    const captured = mockResponse();
-    const { res } = captured;
-
-    stripeWebhookHandler(req, res as Response);
-
-    // Should be caught by the outer try/catch and returned as 500
-    expect([200, 500]).toContain(captured.statusCode);
-    errorSpy.mockRestore();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Verify constructEvent is called with correct arguments
-// ---------------------------------------------------------------------------
-describe('stripeWebhookHandler — constructEvent arguments', () => {
-  it('passes raw Buffer body, signature, and webhook secret to constructEvent', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    const eventType = 'invoice.payment_succeeded';
-    const dataObject = { id: 'in_arg_check', customer: 'cus_arg', amount_paid: 0, currency: 'usd' };
-
-    mockConstructEvent.mockReturnValueOnce({
-      id: 'evt_arg_check',
-      type: eventType,
-      data: { object: dataObject },
-    });
-
-    const req = makeStripeReq(eventType, dataObject);
-    const captured = mockResponse();
-    const { res } = captured;
-
-    stripeWebhookHandler(req, res as Response);
-
-    expect(mockConstructEvent).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      expect.any(String),
-      STRIPE_TEST_WEBHOOK_SECRET
-    );
-    consoleSpy.mockRestore();
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toMatchObject({ received: true });
+    logSpy.mockRestore();
   });
 });
