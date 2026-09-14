@@ -103,6 +103,7 @@ const allowedTools = new Set(
     : revenueGatewayConfig?.allowed_tools ?? tools.map((tool) => tool.name),
 );
 const approvalRequiredTools = new Set(revenueGatewayConfig?.human_approval_required_for ?? []);
+const visibleTools = tools.filter((tool) => allowedTools.has(tool.name));
 
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value : undefined;
@@ -168,7 +169,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
 }
 
 export function listMcpTools(): McpTool[] {
-  return tools;
+  return visibleTools;
 }
 
 export async function handleMcpRequest(request: McpRequest): Promise<McpResponse> {
@@ -184,7 +185,7 @@ export async function handleMcpRequest(request: McpRequest): Promise<McpResponse
               serverInfo: { name: 'openclaw-revenue-engine', version: '1.0.0' },
               capabilities: { tools: {} },
             }
-          : { tools },
+          : { tools: visibleTools },
       };
     }
 

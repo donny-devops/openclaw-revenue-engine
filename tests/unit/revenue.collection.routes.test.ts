@@ -91,6 +91,12 @@ describe('money collection routes', () => {
     expect(summary.body.summary.totals_by_metric.agent_run).toBe(2);
   });
 
+  it('requires tenant_id for usage summaries', async () => {
+    const res = await request(app).get('/usage/summary');
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'tenant_id is required' });
+  });
+
   it('handles MCP JSON-RPC classify calls', async () => {
     const res = await request(app).post('/mcp').send({
       jsonrpc: '2.0',

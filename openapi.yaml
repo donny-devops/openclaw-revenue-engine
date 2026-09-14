@@ -107,18 +107,20 @@ paths:
           description: Event recorded
   /usage/summary:
     get:
-      summary: Return the usage summary for all tenants or one tenant
+      summary: Return the usage summary for one tenant
       security:
         - bearerAuth: []
       parameters:
         - in: query
           name: tenant_id
-          required: false
+          required: true
           schema:
             type: string
       responses:
         "200":
           description: Usage summary
+        "400":
+          description: tenant_id is required
   /mcp:
     post:
       summary: MCP JSON-RPC entrypoint

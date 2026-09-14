@@ -139,8 +139,8 @@ function handlePaymentSucceeded(invoice: Stripe.Invoice): void {
   if (invoice.id) {
     recordInvoicePayment({
       stripe_invoice_id: invoice.id,
-      amount_cents: invoice.amount_paid,
-      currency: invoice.currency,
+      amount_cents: invoice.amount_paid ?? 0,
+      currency: invoice.currency ?? 'usd',
       customer_id: String(invoice.customer),
       status: 'paid',
     });
