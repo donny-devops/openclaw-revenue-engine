@@ -78,7 +78,12 @@ describe('billing ledger and usage', () => {
     markPaymentStatus(eurPayment.id, 'paid');
 
     expect(getEarningsSnapshot('usd')).toMatchObject({ currency: 'usd', collected_cents: 2900, payments: 1 });
-    expect(getEarningsSnapshot('eur')).toMatchObject({ currency: 'eur', collected_cents: 4100, payments: 1 });
+    expect(getEarningsSnapshot('eur')).toMatchObject({
+      currency: 'eur',
+      collected_cents: 4100,
+      collected_usd: 0,
+      payments: 1,
+    });
   });
 
   it('is idempotent for stripe events and invoice payments', () => {
@@ -219,7 +224,10 @@ describe('MCP server', () => {
   it('lists tools and classifies paid requests', async () => {
     const listed = await handleMcpRequest({ method: 'tools/list', id: 1 });
     expect(listMcpTools().map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['create_checkout', 'get_earnings']),
+      expect.arrayContaining(['create_checkout']),
+    );
+    expect(listMcpTools().map((tool) => tool.name)).not.toEqual(
+      expect.arrayContaining(['get_earnings', 'list_payments']),
     );
     expect(listed.result).toMatchObject({ tools: expect.any(Array) });
 

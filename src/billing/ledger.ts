@@ -144,7 +144,7 @@ export function getEarningsSnapshot(currency = 'usd'): EarningsSnapshot {
     pending_count: pending.length,
     collected_count: collected.length,
     failed_count: failed.length,
-    collected_usd: collectedCents / 100,
+    collected_usd: normalizedCurrency === 'usd' ? collectedCents / 100 : 0,
     payments: records.length,
   };
 }

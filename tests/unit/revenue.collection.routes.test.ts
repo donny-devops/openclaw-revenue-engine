@@ -60,6 +60,9 @@ describe('money collection routes', () => {
     expect(agents.body.agents).toEqual(
       expect.arrayContaining([expect.objectContaining({ slug: 'revenue-intake-orchestrator' })]),
     );
+    expect(tools.body.tools).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'get_earnings' })]),
+    );
   });
 
   it('records usage events and returns a summary', async () => {

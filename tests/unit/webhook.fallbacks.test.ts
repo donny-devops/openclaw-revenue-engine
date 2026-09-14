@@ -127,7 +127,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     logSpy.mockRestore();
   });
 
-  it('returns 400 with "Unknown error" when constructEvent throws a non-Error', () => {
+  it('returns a generic 400 when constructEvent throws a non-Error', () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockConstructEvent.mockImplementationOnce(() => {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -136,7 +136,7 @@ describe('stripeWebhookHandler — invoice fallbacks and non-Error catch', () =>
     const captured = mockResponse();
     stripeWebhookHandler(req(), captured.res as Response);
     expect(captured.statusCode).toBe(400);
-    expect(captured.body).toMatchObject({ error: expect.stringContaining('Unknown error') });
+    expect(captured.body).toMatchObject({ error: 'Webhook signature verification failed' });
     errSpy.mockRestore();
   });
 

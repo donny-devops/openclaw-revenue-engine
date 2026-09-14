@@ -24,6 +24,11 @@ const defaultSuccessUrl = (): string =>
 const defaultCancelUrl = (): string =>
   optionalEnv('STRIPE_CANCEL_URL', 'http://localhost:3000/revenue/checkout/canceled');
 
+const amountToCents = (amount: number): number => {
+  const [whole = '0', fractional = ''] = amount.toString().split('.');
+  return (Number.parseInt(whole, 10) * 100) + Number.parseInt((fractional + '00').slice(0, 2), 10);
+};
+
 export async function createLaneCheckout(input: CheckoutRequest): Promise<CheckoutResult> {
   if (!input.customer_email?.trim()) {
     throw new Error('customer_email is required');
@@ -36,7 +41,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
     throw new Error('Revenue classification did not assign an agent');
   }
   const simulated = isSimulatedStripe();
-  const amountCents = Math.round(classification.estimated_revenue * 100);
+  const amountCents = amountToCents(classification.estimated_revenue);
   const currency = classification.currency.toLowerCase();
 
   const payment = createPayment({

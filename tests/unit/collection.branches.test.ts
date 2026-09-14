@@ -139,17 +139,13 @@ describe('live Stripe checkout and error branches', () => {
     const lanes = await handleMcpRequest({ method: 'tools/call', id: 2, params: { name: 'list_lanes' } });
     const services = await handleMcpRequest({ method: 'tools/call', id: 3, params: { name: 'list_services' } });
     const agents = await handleMcpRequest({ method: 'tools/call', id: 4, params: { name: 'list_agents' } });
-    const earnings = await handleMcpRequest({ method: 'tools/call', id: 5, params: { name: 'get_earnings' } });
-    const payments = await handleMcpRequest({ method: 'tools/call', id: 6, params: { name: 'list_payments' } });
-    const unknown = await handleMcpRequest({ method: 'tools/call', id: 7, params: { name: 'nope' } });
-    const badMethod = await handleMcpRequest({ method: 'not-a-method', id: 8 });
+    const unknown = await handleMcpRequest({ method: 'tools/call', id: 5, params: { name: 'nope' } });
+    const badMethod = await handleMcpRequest({ method: 'not-a-method', id: 6 });
     const mcpHttp = await withOperatorAuth(request(app).post('/mcp')).send({ jsonrpc: '2.0', id: 1 });
 
     expect(lanes.error).toBeUndefined();
     expect(services.error).toBeUndefined();
     expect(agents.error).toBeUndefined();
-    expect(earnings.error).toBeUndefined();
-    expect(payments.error).toBeUndefined();
     expect(unknown.error?.message).toContain('Unknown MCP tool');
     expect(badMethod.error?.message).toContain('Unsupported MCP method');
     expect(mcpHttp.status).toBe(400);
