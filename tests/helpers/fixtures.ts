@@ -6,6 +6,7 @@
  */
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 
 // ---------------------------------------------------------------------------
 // Stripe fixture helpers
@@ -14,6 +15,23 @@ import type { Request, Response } from 'express';
 export const STRIPE_TEST_SECRET_KEY = 'sk_test_fixture_key_00000000000000';
 export const STRIPE_TEST_WEBHOOK_SECRET = 'whsec_test_fixture_secret_00000000';
 export const GITHUB_TEST_WEBHOOK_SECRET = 'github_test_fixture_secret_00000000';
+
+/**
+ * Headers for routes guarded by requireOperatorAuth.
+ * Full CI sets OPERATOR_API_KEY / JWT_SECRET, which makes those routes
+ * fail closed with 401 unless a bearer token is present.
+ */
+export function operatorAuthHeaders(): Record<string, string> {
+  const apiKey = process.env.OPERATOR_API_KEY;
+  if (apiKey) {
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+  const jwtSecret = process.env.JWT_SECRET;
+  if (jwtSecret) {
+    return { Authorization: `Bearer ${jwt.sign({ sub: 'ci-operator' }, jwtSecret)}` };
+  }
+  return {};
+}
 
 /**
  * Builds a minimal Stripe event object (raw JSON Buffer) and its
