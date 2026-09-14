@@ -2,6 +2,7 @@ import request from 'supertest';
 
 import { resetLedger } from '../../src/billing/ledger';
 import { resetUsageMeter } from '../../src/billing/usageMeter';
+import { operatorAuthHeaders } from '../helpers/fixtures';
 
 beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_revenue_routes_placeholder';
@@ -36,7 +37,7 @@ describe('money collection routes', () => {
     expect(collected.status).toBe(200);
     expect(collected.body.payment.status).toBe('paid');
 
-    const earnings = await request(app).get('/revenue/earnings');
+    const earnings = await request(app).get('/revenue/earnings').set(operatorAuthHeaders());
     expect(earnings.status).toBe(200);
     expect(earnings.body.earnings.collected_cents).toBe(2900);
   });
@@ -59,20 +60,26 @@ describe('money collection routes', () => {
   });
 
   it('records usage events and returns a summary', async () => {
-    const created = await request(app).post('/usage/events').send({
-      tenant_id: 'tenant_demo',
-      metric_type: 'agent_run',
-      quantity: 2,
-    });
+    const created = await request(app)
+      .post('/usage/events')
+      .set(operatorAuthHeaders())
+      .send({
+        tenant_id: 'tenant_demo',
+        metric_type: 'agent_run',
+        quantity: 2,
+      });
     expect(created.status).toBe(201);
 
-    const summary = await request(app).get('/usage/summary').query({ tenant_id: 'tenant_demo' });
+    const summary = await request(app)
+      .get('/usage/summary')
+      .set(operatorAuthHeaders())
+      .query({ tenant_id: 'tenant_demo' });
     expect(summary.status).toBe(200);
     expect(summary.body.summary.totals_by_metric.agent_run).toBe(2);
   });
 
   it('handles MCP JSON-RPC classify calls', async () => {
-    const res = await request(app).post('/mcp').send({
+    const res = await request(app).post('/mcp').set(operatorAuthHeaders()).send({
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
