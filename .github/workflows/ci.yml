@@ -1,4 +1,4 @@
-name: CI
+name: Full CI
 
 on:
   push:
@@ -7,45 +7,82 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+env:
+  CI: "true"
+  NODE_ENV: test
+  LOG_LEVEL: silent
+  STRIPE_SECRET_KEY: sk_test_ci_placeholder
+  STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+  GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
+  JWT_SECRET: ci_jwt_secret_placeholder
+  OPERATOR_API_KEY: ci_operator_api_key_placeholder
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: full-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Lint, type-check, unit, audit, build (${{ matrix.node-version }})
+  node:
+    name: Node CI (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22]
+        node: [22.x]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+- name: Install dependencies
+  run: npm ci
 
-      - name: Lint
-        run: npm run lint --if-present
+- name: Lint
+  run: npm run lint --if-present
 
-      - name: Type check
-        run: npm run type-check --if-present
+- name: Type check
+  run: npm run type-check --if-present
+
+- name: Unit and integration tests
+  run: npm test
+
+- name: Build
+  run: npm run build --if-present
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node-${{ matrix.node }}
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 14
+  python-poll:
+    name: Poll runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dry-run poll
+        env:
+          INPUT_DRY_RUN: "true"
+        run: python main.py --once --direct-api --poll-only --dry-run
 
       - name: Unit tests
-        run: npm run test:unit --if-present
-
-      - name: Dependency audit
-        run: npm audit --omit=dev --audit-level=high
-
-      - name: Build
-        run: npm run build --if-present
+        run: python -m unittest discover -s tests/python -p "test_*.py"

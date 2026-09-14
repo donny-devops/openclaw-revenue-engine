@@ -9,10 +9,17 @@ paths = [
   '''node_modules''',
   '''dist''',
   '''coverage''',
-  '''package-lock\.json'''
+  '''package-lock\.json''',
+  '''\.env\.example'''
 ]
 regexes = [
   '''sk_test_[a-zA-Z0-9_]*placeholder''',
   '''whsec_[a-zA-Z0-9_]*placeholder''',
-  '''github_[a-zA-Z0-9_]*placeholder'''
+  '''github_[a-zA-Z0-9_]*placeholder''',
+  '''sk_test_your_stripe_secret_key_here''',
+  '''pk_test_your_stripe_publishable_key_here''',
+  '''whsec_your_webhook_secret_here''',
+  '''change_me_to_a_long_random_secret_in_production''',
+  '''change_me_to_a_long_random_operator_key''',
+  '''your_moltgate_api_key_here'''
 ]

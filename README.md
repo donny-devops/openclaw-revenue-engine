@@ -137,6 +137,26 @@ openclaw-revenue-engine/
 | **Ultra** | Premium agent workflows, heavy runtime | $75–$200+ | 1 hour |
  
 Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response windows, and routing logic to match your service offerings.
+
+### Current default offers
+
+| Lane | Price | SLA |
+|------|-------|-----|
+| **small-request** | $19 | 24 hours |
+| **detailed-request** | $29 | 12 hours |
+| **real-offer** | $49 | 6 hours |
+
+### Money collection APIs
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/revenue/checkout` | Create a Stripe or simulated Checkout session |
+| `POST` | `/revenue/payments/:id/collect` | Complete a simulated payment (non-production) |
+| `GET` | `/revenue/earnings` | Operator earnings snapshot |
+| `POST` | `/usage/events` | Record metered usage |
+| `POST` | `/mcp` | MCP JSON-RPC tools for agents |
+
+Set `STRIPE_SECRET_KEY` to a live/test Stripe key for real collection. Placeholder keys automatically use simulated checkout. Operator routes accept `Authorization: Bearer $OPERATOR_API_KEY` or a JWT signed with `JWT_SECRET`.
  
 ---
  

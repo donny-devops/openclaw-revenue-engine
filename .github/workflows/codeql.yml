@@ -31,6 +31,8 @@ jobs:
         include:
           - language: javascript-typescript
             build-mode: none
+          - language: python
+            build-mode: none
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
