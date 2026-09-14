@@ -146,6 +146,12 @@ describe('operator auth', () => {
     expect(result.nextCalled).toBe(true);
   });
 
+  it('accepts a bearer token with extra spaces', () => {
+    process.env.OPERATOR_API_KEY = 'operator-secret';
+    const result = run({ headers: { authorization: ['Bearer', process.env.OPERATOR_API_KEY].join('   ') } });
+    expect(result.nextCalled).toBe(true);
+  });
+
   it('accepts a valid JWT', () => {
     process.env.JWT_SECRET = 'jwt-secret-value';
     delete process.env.OPERATOR_API_KEY;
@@ -197,9 +203,27 @@ describe('MCP server', () => {
         },
       },
     });
-    expect(result.error).toBeUndefined();
-    expect(result.result).toMatchObject({
-      structuredContent: expect.objectContaining({ simulated: true }),
+    expect(result.result).toBeUndefined();
+    expect(result.error).toMatchObject({
+      code: -32000,
+      message: 'Tool requires human approval: create_checkout',
+    });
+  });
+
+  it('rejects non-object MCP tool arguments at dispatch time', async () => {
+    const result = await handleMcpRequest({
+      method: 'tools/call',
+      id: 4,
+      params: {
+        name: 'classify_paid_request',
+        arguments: 'invalid' as unknown as Record<string, unknown>,
+      },
+    });
+
+    expect(result.result).toBeUndefined();
+    expect(result.error).toMatchObject({
+      code: -32000,
+      message: 'Tool arguments must be an object',
     });
   });
 });

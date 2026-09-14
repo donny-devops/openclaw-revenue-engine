@@ -64,7 +64,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
   }
 
   const stripe = getStripe();
-  const successUrl = (input.success_url ?? defaultSuccessUrl()).replace('{CHECKOUT_SESSION_ID}', '{CHECKOUT_SESSION_ID}');
+  const successUrl = input.success_url ?? defaultSuccessUrl();
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer_email: input.customer_email,

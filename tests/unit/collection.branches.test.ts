@@ -146,7 +146,7 @@ describe('live Stripe checkout and error branches', () => {
     expect(agents.error).toBeUndefined();
     expect(earnings.error).toBeUndefined();
     expect(payments.error).toBeUndefined();
-    expect(unknown.error?.message).toContain('Unknown MCP tool');
+    expect(unknown.error?.message).toContain('Tool not allowed by MCP gateway policy');
     expect(badMethod.error?.message).toContain('Unsupported MCP method');
     expect(mcpHttp.status).toBe(400);
   });

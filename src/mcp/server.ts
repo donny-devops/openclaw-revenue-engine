@@ -2,6 +2,7 @@ import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
 import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
+import gatewayConfig from '../../config/mcp-gateway.json';
 
 export interface McpTool {
   name: string;
@@ -83,6 +84,26 @@ const tools: McpTool[] = [
   },
 ];
 
+interface GatewayServerConfig {
+  slug: string;
+  allowed_tools?: string[];
+  human_approval_required_for?: string[];
+  enabled?: boolean;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const revenueGatewayConfig = (gatewayConfig.servers as GatewayServerConfig[]).find(
+  (server) => server.slug === 'revenue-engine-mcp-server',
+);
+const allowedTools = new Set(
+  revenueGatewayConfig?.enabled === false
+    ? []
+    : revenueGatewayConfig?.allowed_tools ?? tools.map((tool) => tool.name),
+);
+const approvalRequiredTools = new Set(revenueGatewayConfig?.human_approval_required_for ?? []);
+
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 
@@ -152,7 +173,17 @@ export async function handleMcpRequest(request: McpRequest): Promise<McpResponse
     if (request.method === 'tools/call') {
       const name = request.params?.name;
       if (!name) throw new Error('Tool name is required');
-      const result = await callTool(name, request.params?.arguments ?? {});
+      if (!allowedTools.has(name)) {
+        throw new Error(`Tool not allowed by MCP gateway policy: ${name}`);
+      }
+      if (approvalRequiredTools.has(name)) {
+        throw new Error(`Tool requires human approval: ${name}`);
+      }
+      const args = request.params?.arguments;
+      if (args !== undefined && !isRecord(args)) {
+        throw new Error('Tool arguments must be an object');
+      }
+      const result = await callTool(name, args ?? {});
       return {
         jsonrpc: '2.0',
         id,
