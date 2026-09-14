@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: OpenClaw Revenue Engine
+  version: 1.0.0
+  description: Paid-lane classification, Stripe checkout, usage metering, and MCP tools.
+servers:
+  - url: http://localhost:3000
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service is up
+  /revenue/summary:
+    get:
+      summary: Lane catalog summary plus live earnings snapshot
+      responses:
+        "200":
+          description: Summary payload
+  /revenue/checkout:
+    post:
+      summary: Create a Stripe or simulated checkout session for a paid lane
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body, customer_email]
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                customer_email:
+                  type: string
+                  format: email
+                lane:
+                  type: string
+                service:
+                  type: string
+      responses:
+        "201":
+          description: Checkout session created
+        "400":
+          description: Invalid payload
+  /revenue/earnings:
+    get:
+      summary: Operator earnings snapshot
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Collected and pending revenue
+  /usage/events:
+    post:
+      summary: Record an idempotent usage event
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Event recorded
+  /mcp:
+    post:
+      summary: MCP JSON-RPC entrypoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: JSON-RPC result
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

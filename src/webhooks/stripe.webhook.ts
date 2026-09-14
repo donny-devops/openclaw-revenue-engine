@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
-// ─── Fail fast at module load if required env vars are missing ───
-function requireEnv(key: string): string {
-  const val = process.env[key];
-  if (!val) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return val;
-}
+import { requireEnv } from '../lib/env';
+import {
+  findPaymentByStripeSession,
+  getPayment,
+  markPaymentStatus,
+  recordInvoicePayment,
+  rememberStripeEvent,
+} from '../billing/ledger';
+import { redactSecrets } from '../security/redact';
 
 const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'), {
   apiVersion: '2024-06-20',
@@ -64,8 +65,13 @@ export function stripeWebhookHandler(
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Stripe webhook signature verification failed: ${message}`);
+    console.error(`Stripe webhook signature verification failed: ${redactSecrets(message)}`);
     res.status(400).json({ error: `Webhook signature verification failed: ${message}` });
+    return;
+  }
+
+  if (!rememberStripeEvent(event.id)) {
+    res.status(200).json({ received: true, eventType: event.type, duplicate: true });
     return;
   }
 
@@ -130,19 +136,45 @@ function handlePaymentSucceeded(invoice: Stripe.Invoice): void {
   console.log(`Payment succeeded for invoice: ${invoice.id ?? 'unknown'}`);
   console.log(`Amount: ${invoice.amount_paid} ${invoice.currency}`);
   console.log(`Customer: ${String(invoice.customer)}`);
-  // TODO: Record payment in DB, generate internal invoice record
+  if (invoice.id) {
+    recordInvoicePayment({
+      stripe_invoice_id: invoice.id,
+      amount_cents: invoice.amount_paid,
+      currency: invoice.currency,
+      customer_id: String(invoice.customer),
+      status: 'paid',
+    });
+  }
 }
 
 function handlePaymentFailed(invoice: Stripe.Invoice): void {
   console.log(`Payment failed for invoice: ${invoice.id ?? 'unknown'}`);
   console.log(`Customer: ${String(invoice.customer)}`);
   console.log(`Next retry: ${invoice.next_payment_attempt ?? 'none'}`);
-  // TODO: Send payment failure alert, flag account for retry
+  if (invoice.id) {
+    recordInvoicePayment({
+      stripe_invoice_id: invoice.id,
+      amount_cents: invoice.amount_due ?? 0,
+      currency: invoice.currency ?? 'usd',
+      customer_id: String(invoice.customer),
+      status: 'failed',
+    });
+  }
 }
 
 function handleCheckoutCompleted(session: Stripe.Checkout.Session): void {
   console.log(`Checkout session completed: ${session.id}`);
   console.log(`Customer: ${String(session.customer)}`);
   console.log(`Payment status: ${session.payment_status}`);
-  // TODO: Activate subscription, send onboarding email
+  const paymentId = session.metadata?.payment_id;
+  const existing = (paymentId ? getPayment(paymentId) : undefined) ?? findPaymentByStripeSession(session.id);
+  if (!existing) {
+    return;
+  }
+  markPaymentStatus(existing.id, session.payment_status === 'paid' ? 'paid' : 'pending', {
+    stripe_session_id: session.id,
+    stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
+    amount_cents: session.amount_total ?? existing.amount_cents,
+    currency: session.currency ?? existing.currency,
+  });
 }

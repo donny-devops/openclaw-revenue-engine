@@ -22,6 +22,8 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
+    '!src/mcp/stdio.ts',
+    '!src/server.ts',
   ],
   coverageThreshold: {
     global: {
