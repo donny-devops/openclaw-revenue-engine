@@ -129,4 +129,16 @@ describe('money collection routes', () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'Invalid MCP JSON-RPC payload' });
   });
+
+  it('supports MCP batch requests', async () => {
+    const res = await request(app).post('/mcp').send([
+      { jsonrpc: '2.0', id: 4, method: 'tools/list' },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_agents' } },
+    ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].result.tools).toEqual(expect.any(Array));
+    expect(res.body[1].result.structuredContent.agents).toEqual(expect.any(Array));
+  });
 });

@@ -58,6 +58,35 @@ describe('billing ledger and usage', () => {
     expect(earnings.collected_usd).toBe(29);
   });
 
+  it('filters earnings snapshots by currency', () => {
+    createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      customer_email: 'buyer@example.com',
+      simulated: true,
+    });
+    const eurPayment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 3100,
+      currency: 'eur',
+      customer_email: 'buyer@example.com',
+      simulated: true,
+    });
+    markPaymentStatus(eurPayment.id, 'paid');
+
+    const usd = getEarningsSnapshot('USD');
+    const eur = getEarningsSnapshot('eur');
+
+    expect(usd.currency).toBe('usd');
+    expect(usd.payments).toBe(1);
+    expect(usd.collected_cents).toBe(0);
+    expect(eur.payments).toBe(1);
+    expect(eur.collected_cents).toBe(3100);
+  });
+
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);
@@ -226,4 +255,5 @@ describe('MCP server', () => {
       message: 'Tool arguments must be an object',
     });
   });
+
 });
