@@ -16,6 +16,18 @@ export const STRIPE_TEST_WEBHOOK_SECRET = 'whsec_test_fixture_secret_00000000';
 export const GITHUB_TEST_WEBHOOK_SECRET = 'github_test_fixture_secret_00000000';
 
 /**
+ * Bearer headers for operator-protected routes. CI sets OPERATOR_API_KEY,
+ * which makes requireOperatorAuth fail closed unless a matching token is sent.
+ */
+export function operatorAuthHeaders(): Record<string, string> {
+  const apiKey = process.env.OPERATOR_API_KEY;
+  if (apiKey) {
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+  return {};
+}
+
+/**
  * Builds a minimal Stripe event object (raw JSON Buffer) and its
  * HMAC-SHA256 Stripe-Signature header so tests can call
  * stripeWebhookHandler with a validly-signed payload without hitting
