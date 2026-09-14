@@ -11,6 +11,8 @@ import {
   recordInvoicePayment,
   rememberStripeEvent,
   forgetStripeEvent,
+  completeStripeEvent,
+  isStripeEventProcessed,
   resetLedger,
 } from '../../src/billing/ledger';
 import { createLaneCheckout, simulatePaymentCollection } from '../../src/billing/checkout';
@@ -61,6 +63,10 @@ describe('billing ledger and usage', () => {
 
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
+    expect(rememberStripeEvent('evt_1')).toBe(false);
+    expect(isStripeEventProcessed('evt_1')).toBe(false);
+    completeStripeEvent('evt_1');
+    expect(isStripeEventProcessed('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);
     forgetStripeEvent('evt_1');
     expect(rememberStripeEvent('evt_1')).toBe(true);

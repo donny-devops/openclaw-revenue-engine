@@ -21,6 +21,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Stripe webhook processing now forgets a claimed event id when the handler throws, so Stripe retries can update the ledger instead of returning a duplicate 200
+- Stripe webhook in-flight duplicates now return 409 instead of 200, so a concurrent delivery cannot ACK an event that later fails
+- Poll workflow job id uses underscores so harden-runner can read the resolved engine host from `needs`
 - Poll workflow now allowlists the configured `REVENUE_ENGINE_URL` host so classification requests are not blocked by harden-runner egress policy
 - Replaced broken Full CI workflow (invalid nested YAML, Rust jobs on a Node repo, missing `test:api`/`test:contract` scripts, unconditional Railway deploys)
 - Made `npm run clean` work on Windows

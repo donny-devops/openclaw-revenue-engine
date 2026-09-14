@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { createPayment, getPayment, recordInvoicePayment, resetLedger } from '../../src/billing/ledger';
+import { createPayment, getPayment, recordInvoicePayment, rememberStripeEvent, resetLedger } from '../../src/billing/ledger';
 import { buildStripePayload, mockResponse } from '../helpers/fixtures';
 import { stripeWebhookHandler } from '../../src/webhooks/stripe.webhook';
 
@@ -71,6 +71,22 @@ describe('stripe webhook idempotency', () => {
     expect(retried.statusCode).toBe(200);
     expect(retried.body).not.toMatchObject({ duplicate: true });
     expect(jest.requireActual('../../src/billing/ledger').getEarningsSnapshot().collected_cents).toBe(2900);
+  });
+
+  it('returns 409 for an in-flight duplicate instead of ACKing', () => {
+    const payload = buildStripePayload('invoice.payment_succeeded', {
+      id: 'in_in_flight',
+      amount_paid: 1900,
+      currency: 'usd',
+      customer: 'cus_in_flight',
+    });
+    const eventId = (JSON.parse(payload.body.toString()) as { id: string }).id;
+    expect(rememberStripeEvent(eventId)).toBe(true);
+
+    const result = invoke(payload);
+    expect(result.statusCode).toBe(409);
+    expect(result.body).toMatchObject({ in_flight: true });
+    expect(jest.requireActual('../../src/billing/ledger').getEarningsSnapshot().collected_cents).toBe(0);
   });
 
   it('marks a checkout session paid on a successful delivery', () => {

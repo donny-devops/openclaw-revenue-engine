@@ -4,11 +4,13 @@ import Stripe from 'stripe';
 import { requireEnv } from '../lib/env';
 import {
   findPaymentByStripeSession,
+  forgetStripeEvent,
+  completeStripeEvent,
   getPayment,
+  isStripeEventProcessed,
   markPaymentStatus,
   recordInvoicePayment,
   rememberStripeEvent,
-  forgetStripeEvent,
 } from '../billing/ledger';
 import { redactSecrets } from '../security/redact';
 
@@ -72,7 +74,11 @@ export function stripeWebhookHandler(
   }
 
   if (!rememberStripeEvent(event.id)) {
-    res.status(200).json({ received: true, eventType: event.type, duplicate: true });
+    if (isStripeEventProcessed(event.id)) {
+      res.status(200).json({ received: true, eventType: event.type, duplicate: true });
+      return;
+    }
+    res.status(409).json({ received: false, eventType: event.type, in_flight: true });
     return;
   }
 
@@ -102,6 +108,7 @@ export function stripeWebhookHandler(
       default:
         console.log(`Unhandled Stripe event type: ${event.type}`);
     }
+    completeStripeEvent(event.id);
     res.status(200).json({ received: true, eventType: event.type });
   } catch (err) {
     forgetStripeEvent(event.id);
