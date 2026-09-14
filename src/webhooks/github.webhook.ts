@@ -1,14 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 
-// ─── Fail fast at module load if required env vars are missing ───
-function requireEnv(key: string): string {
-  const val = process.env[key];
-  if (!val) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return val;
-}
+import { requireEnv } from '../lib/env';
 
 const githubWebhookSecret = requireEnv('GITHUB_WEBHOOK_SECRET');
 

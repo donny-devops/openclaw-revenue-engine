@@ -7,6 +7,8 @@ import rateLimit from 'express-rate-limit';
 import { createLogger, format, transports } from 'winston';
 
 import { revenueRouter } from './routes/revenue';
+import { usageRouter } from './routes/usage';
+import { mcpRouter } from './routes/mcp';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
 
@@ -21,6 +23,7 @@ const logger = createLogger({
 });
 
 const app: Application = express();
+app.set('trust proxy', 1);
 
 const globalLimiter = rateLimit({
   windowMs: 60_000,
@@ -58,8 +61,10 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   credentials: process.env.CORS_CREDENTIALS === 'true',
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use('/revenue', revenueRouter);
+app.use('/usage', usageRouter);
+app.use('/mcp', mcpRouter);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -73,6 +78,11 @@ app.get('/', (_req: Request, res: Response) => {
     revenue: '/revenue/summary',
     lanes: '/revenue/lanes',
     services: '/revenue/services',
+    agents: '/revenue/agents',
+    checkout: '/revenue/checkout',
+    earnings: '/revenue/earnings',
+    usage: '/usage/summary',
+    mcp: '/mcp',
     openclaw: '/revenue/openclaw',
   });
 });

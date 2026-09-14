@@ -60,6 +60,21 @@ export interface PaidRequestInput {
   source?: string;
 }
 
+export interface AgentAssignment {
+  slug: string;
+  name: string;
+  type: string;
+  purpose: string;
+  human_review_required: boolean;
+  mcp_servers: string[];
+  mcp_tools: string[];
+}
+
+export interface AgentPlan {
+  primary: AgentAssignment;
+  supporting: AgentAssignment[];
+}
+
 export interface ClassifiedPaidRequest {
   lane: LaneConfig;
   service: ServiceConfig;
@@ -70,6 +85,8 @@ export interface ClassifiedPaidRequest {
   deliverable_template: string;
   requested_at: string;
   input_summary: string;
+  assigned_agent?: AgentAssignment;
+  agent_plan?: AgentPlan;
 }
 
 export interface RevenueSummary {

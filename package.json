@@ -11,11 +11,14 @@
     "test:integration": "jest --testPathPattern=tests/integration",
     "test:performance": "jest --testPathPattern=tests/performance",
     "test:coverage": "jest --coverage",
+    "test:api": "jest --testPathPattern=tests/integration",
+    "test:contract": "jest --testPathPattern=tests/unit/revenue",
     "build": "tsc",
     "prebuild": "npm run clean",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "start": "node dist/server.js",
-    "dev": "ts-node src/server.ts"
+    "dev": "ts-node src/server.ts",
+    "mcp": "ts-node src/mcp/stdio.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
