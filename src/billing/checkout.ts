@@ -1,4 +1,3 @@
-import { assignAgents } from '../agents/orchestrator';
 import { classifyPaidRequest } from '../revenue/serviceCatalog';
 import { ClassifiedPaidRequest, PaidRequestInput } from '../revenue/types';
 import { optionalEnv } from '../lib/env';
@@ -31,7 +30,11 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
   }
 
   const classification = classifyPaidRequest(input);
-  const agentPlan = assignAgents(classification.service.slug);
+  const agentPlan = classification.agent_plan;
+  const assignedAgent = classification.assigned_agent;
+  if (!agentPlan || !assignedAgent) {
+    throw new Error('Revenue classification did not assign an agent');
+  }
   const simulated = isSimulatedStripe();
   const amountCents = Math.round(classification.estimated_revenue * 100);
   const currency = classification.currency.toLowerCase();
@@ -44,7 +47,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
     customer_email: input.customer_email,
     simulated,
     metadata: {
-      agent: agentPlan.primary.slug,
+      agent: assignedAgent.slug,
       source: input.source ?? 'api',
     },
   });
@@ -57,7 +60,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
     });
     return {
       payment: updated,
-      classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan },
+      classification,
       checkout_url: checkoutUrl,
       simulated: true,
     };
@@ -77,7 +80,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
       payment_id: payment.id,
       lane: classification.lane.slug,
       service: classification.service.slug,
-      agent: agentPlan.primary.slug,
+      agent: assignedAgent.slug,
     },
     line_items: [
       {
@@ -105,7 +108,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
 
   return {
     payment: updated,
-    classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan },
+    classification,
     checkout_url: session.url,
     simulated: false,
   };

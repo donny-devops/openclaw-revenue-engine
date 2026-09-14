@@ -1,4 +1,4 @@
-import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
+import { listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
 import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
@@ -103,8 +103,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
         lane: asString(args.lane),
         service: asString(args.service),
       });
-      const agentPlan = assignAgents(classification.service.slug);
-      return { classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan } };
+      return { classification };
     }
     case 'create_checkout': {
       const body = asString(args.body);

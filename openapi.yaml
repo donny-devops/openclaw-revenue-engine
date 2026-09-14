@@ -53,6 +53,8 @@ paths:
       responses:
         "200":
           description: Collected and pending revenue
+        "401":
+          description: Missing or invalid operator token
   /revenue/agents:
     get:
       summary: List enabled OpenClaw agents exposed by the revenue engine
@@ -67,6 +69,8 @@ paths:
       responses:
         "200":
           description: Payment ledger entries
+        "401":
+          description: Missing or invalid operator token
   /revenue/payments/{id}:
     get:
       summary: Fetch a single payment record by id
@@ -81,6 +85,8 @@ paths:
       responses:
         "200":
           description: Payment record
+        "401":
+          description: Missing or invalid operator token
         "404":
           description: Payment not found
   /revenue/payments/{id}/collect:
@@ -97,6 +103,8 @@ paths:
       responses:
         "200":
           description: Payment collected
+        "401":
+          description: Missing or invalid operator token
         "400":
           description: Invalid collection request
         "403":
@@ -111,6 +119,10 @@ paths:
       responses:
         "201":
           description: Event recorded
+        "400":
+          description: Invalid usage event payload
+        "401":
+          description: Missing or invalid operator token
   /usage/summary:
     get:
       summary: Read usage totals, optionally filtered by tenant
@@ -125,6 +137,8 @@ paths:
       responses:
         "200":
           description: Usage summary
+        "401":
+          description: Missing or invalid operator token
   /mcp:
     post:
       summary: MCP JSON-RPC entrypoint
@@ -133,6 +147,10 @@ paths:
       responses:
         "200":
           description: JSON-RPC result
+        "400":
+          description: Invalid JSON-RPC request or MCP tool error
+        "401":
+          description: Missing or invalid operator token
   /mcp/tools:
     get:
       summary: List public MCP tool metadata without invoking a tool
