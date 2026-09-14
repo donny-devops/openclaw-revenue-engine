@@ -58,6 +58,7 @@ jobs:
           MOLTGATE_BASE_URL: ${{ secrets.MOLTGATE_BASE_URL }}
           MOLTGATE_PROFILE_HANDLE: ${{ secrets.MOLTGATE_PROFILE_HANDLE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REVENUE_ENGINE_URL: ${{ secrets.REVENUE_ENGINE_URL }}
           LOG_LEVEL: INFO
           INPUT_LANE: ${{ inputs.lane || '' }}
           INPUT_DRY_RUN: ${{ inputs.dry_run || 'false' }}

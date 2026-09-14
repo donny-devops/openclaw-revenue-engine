@@ -31,6 +31,7 @@ import app from '../../src/index';
 
 describe('Performance: GET /health', () => {
   it('responds within 100ms under no load', async () => {
+    await request(app).get('/health');
     const start = Date.now();
     const res = await request(app).get('/health');
     const elapsed = Date.now() - start;

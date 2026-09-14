@@ -1,3 +1,4 @@
+import { assignAgents } from '../agents/orchestrator';
 import { loadLaneCatalog, loadOpenClawConfig, loadServiceCatalog, loadTemplate } from './config';
 import { ClassifiedPaidRequest, LaneConfig, PaidRequestInput, RevenueSummary, ServiceConfig } from './types';
 
@@ -84,17 +85,20 @@ export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequ
     ...(openclaw.routing.priority_labels[lane.slug] ?? []),
     `service:${service.slug}`,
   ];
+  const agentPlan = assignAgents(service.slug);
 
   return {
     lane,
     service,
     estimated_revenue: lane.price,
     currency: loadLaneCatalog().currency,
-    labels: Array.from(new Set(labels)),
+    labels: Array.from(new Set([...labels, `agent:${agentPlan.primary.slug}`])),
     human_review_required: lane.human_review_required || openclaw.guardrails.require_human_review,
     deliverable_template: loadTemplate(service.deliverable_template),
     requested_at: new Date().toISOString(),
     input_summary: summarizeInput(input),
+    assigned_agent: agentPlan.primary,
+    agent_plan: agentPlan,
   };
 };
 
