@@ -1,6 +1,5 @@
-import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
+import { listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
-import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
 
 export interface McpTool {
@@ -71,16 +70,6 @@ const tools: McpTool[] = [
       },
     },
   },
-  {
-    name: 'get_earnings',
-    description: 'Return collected and pending revenue from the payment ledger.',
-    inputSchema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'list_payments',
-    description: 'List payment collection records.',
-    inputSchema: { type: 'object', properties: {} },
-  },
 ];
 
 const asString = (value: unknown): string | undefined =>
@@ -103,8 +92,7 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
         lane: asString(args.lane),
         service: asString(args.service),
       });
-      const agentPlan = assignAgents(classification.service.slug);
-      return { classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan } };
+      return { classification };
     }
     case 'create_checkout': {
       const body = asString(args.body);
@@ -119,10 +107,6 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
         source: 'mcp',
       });
     }
-    case 'get_earnings':
-      return { earnings: getEarningsSnapshot() };
-    case 'list_payments':
-      return { payments: listPayments() };
     default:
       throw new Error(`Unknown MCP tool: ${name}`);
   }

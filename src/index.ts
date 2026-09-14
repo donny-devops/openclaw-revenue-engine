@@ -23,7 +23,7 @@ const logger = createLogger({
 });
 
 const app: Application = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
 
 const globalLimiter = rateLimit({
   windowMs: 60_000,

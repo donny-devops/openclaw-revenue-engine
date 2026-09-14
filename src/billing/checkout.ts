@@ -1,4 +1,3 @@
-import { assignAgents } from '../agents/orchestrator';
 import { classifyPaidRequest } from '../revenue/serviceCatalog';
 import { ClassifiedPaidRequest, PaidRequestInput } from '../revenue/types';
 import { optionalEnv } from '../lib/env';
@@ -25,15 +24,24 @@ const defaultSuccessUrl = (): string =>
 const defaultCancelUrl = (): string =>
   optionalEnv('STRIPE_CANCEL_URL', 'http://localhost:3000/revenue/checkout/canceled');
 
+const amountToCents = (amount: number): number => {
+  const [whole = '0', fractional = ''] = amount.toString().split('.');
+  return (Number.parseInt(whole, 10) * 100) + Number.parseInt((fractional + '00').slice(0, 2), 10);
+};
+
 export async function createLaneCheckout(input: CheckoutRequest): Promise<CheckoutResult> {
   if (!input.customer_email?.trim()) {
     throw new Error('customer_email is required');
   }
 
   const classification = classifyPaidRequest(input);
-  const agentPlan = assignAgents(classification.service.slug);
+  const agentPlan = classification.agent_plan;
+  const assignedAgent = classification.assigned_agent;
+  if (!agentPlan || !assignedAgent) {
+    throw new Error('Revenue classification did not assign an agent');
+  }
   const simulated = isSimulatedStripe();
-  const amountCents = Math.round(classification.estimated_revenue * 100);
+  const amountCents = amountToCents(classification.estimated_revenue);
   const currency = classification.currency.toLowerCase();
 
   const payment = createPayment({
@@ -44,7 +52,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
     customer_email: input.customer_email,
     simulated,
     metadata: {
-      agent: agentPlan.primary.slug,
+      agent: assignedAgent.slug,
       source: input.source ?? 'api',
     },
   });
@@ -57,14 +65,14 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
     });
     return {
       payment: updated,
-      classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan },
+      classification,
       checkout_url: checkoutUrl,
       simulated: true,
     };
   }
 
   const stripe = getStripe();
-  const successUrl = (input.success_url ?? defaultSuccessUrl()).replace('{CHECKOUT_SESSION_ID}', '{CHECKOUT_SESSION_ID}');
+  const successUrl = input.success_url ?? defaultSuccessUrl();
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer_email: input.customer_email,
@@ -77,7 +85,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
       payment_id: payment.id,
       lane: classification.lane.slug,
       service: classification.service.slug,
-      agent: agentPlan.primary.slug,
+      agent: assignedAgent.slug,
     },
     line_items: [
       {
@@ -105,7 +113,7 @@ export async function createLaneCheckout(input: CheckoutRequest): Promise<Checko
 
   return {
     payment: updated,
-    classification: { ...classification, assigned_agent: agentPlan.primary, agent_plan: agentPlan },
+    classification,
     checkout_url: session.url,
     simulated: false,
   };

@@ -129,21 +129,22 @@ export function recordInvoicePayment(input: {
 }
 
 export function getEarningsSnapshot(currency = 'usd'): EarningsSnapshot {
-  const records = listPayments();
+  const normalizedCurrency = currency.toLowerCase();
+  const records = listPayments().filter((item) => item.currency === normalizedCurrency);
   const pending = records.filter((item) => item.status === 'pending');
   const collected = records.filter((item) => item.status === 'paid');
   const failed = records.filter((item) => item.status === 'failed' || item.status === 'canceled');
   const collectedCents = collected.reduce((sum, item) => sum + item.amount_cents, 0);
 
   return {
-    currency,
+    currency: normalizedCurrency,
     pending_cents: pending.reduce((sum, item) => sum + item.amount_cents, 0),
     collected_cents: collectedCents,
     failed_cents: failed.reduce((sum, item) => sum + item.amount_cents, 0),
     pending_count: pending.length,
     collected_count: collected.length,
     failed_count: failed.length,
-    collected_usd: collectedCents / 100,
+    collected_usd: normalizedCurrency === 'usd' ? collectedCents / 100 : 0,
     payments: records.length,
   };
 }

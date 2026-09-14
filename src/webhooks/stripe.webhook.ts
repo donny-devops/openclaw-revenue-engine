@@ -66,7 +66,7 @@ export function stripeWebhookHandler(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Stripe webhook signature verification failed: ${redactSecrets(message)}`);
-    res.status(400).json({ error: `Webhook signature verification failed: ${message}` });
+    res.status(400).json({ error: 'Webhook signature verification failed' });
     return;
   }
 

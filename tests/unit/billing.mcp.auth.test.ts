@@ -58,6 +58,34 @@ describe('billing ledger and usage', () => {
     expect(earnings.collected_usd).toBe(29);
   });
 
+  it('filters earnings snapshots by currency', () => {
+    const usdPayment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      simulated: true,
+    });
+    const eurPayment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 4100,
+      currency: 'eur',
+      simulated: true,
+    });
+
+    markPaymentStatus(usdPayment.id, 'paid');
+    markPaymentStatus(eurPayment.id, 'paid');
+
+    expect(getEarningsSnapshot('usd')).toMatchObject({ currency: 'usd', collected_cents: 2900, payments: 1 });
+    expect(getEarningsSnapshot('eur')).toMatchObject({
+      currency: 'eur',
+      collected_cents: 4100,
+      collected_usd: 0,
+      payments: 1,
+    });
+  });
+
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);
@@ -92,6 +120,32 @@ describe('billing ledger and usage', () => {
     });
     expect(replay.id).toBe(event.id);
     expect(getUsageSummary('tenant_1').totals_by_metric.api_call).toBe(3);
+  });
+
+  it('scopes idempotency keys by tenant and metric', () => {
+    const first = recordUsageEvent({
+      tenant_id: 'tenant_1',
+      metric_type: 'api_call',
+      quantity: 3,
+      idempotency_key: 'shared',
+    });
+    const crossTenant = recordUsageEvent({
+      tenant_id: 'tenant_2',
+      metric_type: 'api_call',
+      quantity: 7,
+      idempotency_key: 'shared',
+    });
+    const crossMetric = recordUsageEvent({
+      tenant_id: 'tenant_1',
+      metric_type: 'agent_run',
+      quantity: 5,
+      idempotency_key: 'shared',
+    });
+
+    expect(crossTenant.id).not.toBe(first.id);
+    expect(crossMetric.id).not.toBe(first.id);
+    expect(getUsageSummary('tenant_1').totals_by_metric).toMatchObject({ api_call: 3, agent_run: 5 });
+    expect(getUsageSummary('tenant_2').totals_by_metric.api_call).toBe(7);
   });
 });
 
@@ -170,7 +224,10 @@ describe('MCP server', () => {
   it('lists tools and classifies paid requests', async () => {
     const listed = await handleMcpRequest({ method: 'tools/list', id: 1 });
     expect(listMcpTools().map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['create_checkout', 'get_earnings']),
+      expect.arrayContaining(['create_checkout']),
+    );
+    expect(listMcpTools().map((tool) => tool.name)).not.toEqual(
+      expect.arrayContaining(['get_earnings', 'list_payments']),
     );
     expect(listed.result).toMatchObject({ tools: expect.any(Array) });
 
