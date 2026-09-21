@@ -113,7 +113,9 @@ describe('live Stripe checkout and error branches', () => {
     const missing = await request(app).get('/revenue/payments/pay_missing');
     expect(missing.status).toBe(404);
 
-    const collect = await request(app).post('/revenue/payments/pay_missing/collect');
+    const collect = await request(app)
+      .post('/revenue/payments/pay_missing/collect')
+      .set(operatorAuthHeaders());
     expect([400, 404]).toContain(collect.status);
 
     const usage = await request(app).post('/usage/events').set(operatorAuthHeaders()).send({ tenant_id: 't1' });
