@@ -1,31 +1,16 @@
 import packageJson from '../../package.json';
 import packageLock from '../../package-lock.json';
 
+const semverGte = require('semver/functions/gte') as (version: string, minimum: string) => boolean;
+
 type LockPackage = {
   version?: string;
   dev?: boolean;
 };
 
-function parseVersion(version: string): number[] {
-  return version.split('.').map((part) => Number.parseInt(part, 10));
-}
-
 function expectVersionAtLeast(actual: string, minimum: string) {
-  const actualParts = parseVersion(actual);
-  const minimumParts = parseVersion(minimum);
-  const length = Math.max(actualParts.length, minimumParts.length);
-
-  for (let index = 0; index < length; index += 1) {
-    const actualPart = actualParts[index] ?? 0;
-    const minimumPart = minimumParts[index] ?? 0;
-
-    if (actualPart > minimumPart) {
-      return;
-    }
-
-    if (actualPart < minimumPart) {
-      throw new Error(`Expected ${actual} to be at least ${minimum}`);
-    }
+  if (!semverGte(actual, minimum)) {
+    throw new Error(`Expected ${actual} to be at least ${minimum}`);
   }
 }
 
