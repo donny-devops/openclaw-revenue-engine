@@ -38,6 +38,13 @@ beforeAll(() => {
 
 import app from '../../src/index';
 
+const operatorAuthHeaders = (): Record<string, string> => {
+  const token =
+    process.env.OPERATOR_API_KEY ??
+    (process.env.JWT_SECRET ? jwt.sign({ sub: 'operator' }, process.env.JWT_SECRET) : undefined);
+  return token ? { authorization: ['Bearer', token].join(' ') } : {};
+};
+
 describe('live Stripe checkout and error branches', () => {
   beforeEach(() => {
     resetLedger();
@@ -114,7 +121,7 @@ describe('live Stripe checkout and error branches', () => {
     const collect = await request(app).post('/revenue/payments/pay_missing/collect');
     expect([400, 404]).toContain(collect.status);
 
-    const usage = await request(app).post('/usage/events').send({ tenant_id: 't1' });
+    const usage = await request(app).post('/usage/events').set(operatorAuthHeaders()).send({ tenant_id: 't1' });
     expect(usage.status).toBe(400);
 
     const classify = await request(app).post('/revenue/classify').send({
@@ -139,7 +146,7 @@ describe('live Stripe checkout and error branches', () => {
     const payments = await handleMcpRequest({ method: 'tools/call', id: 6, params: { name: 'list_payments' } });
     const unknown = await handleMcpRequest({ method: 'tools/call', id: 7, params: { name: 'nope' } });
     const badMethod = await handleMcpRequest({ method: 'not-a-method', id: 8 });
-    const mcpHttp = await request(app).post('/mcp').send({ jsonrpc: '2.0', id: 1 });
+    const mcpHttp = await request(app).post('/mcp').set(operatorAuthHeaders()).send({ jsonrpc: '2.0', id: 1 });
 
     expect(lanes.error).toBeUndefined();
     expect(services.error).toBeUndefined();
