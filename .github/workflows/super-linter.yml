@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Super-Linter
         # Advisory-only signal while the repository keeps linting requirements in CI.
         continue-on-error: true
-        uses: super-linter/super-linter@v8.6.0
+        uses: super-linter/super-linter@v8.7.0
         env:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
