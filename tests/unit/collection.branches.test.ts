@@ -34,6 +34,7 @@ beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_live_checkout_key_123456';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_live_checkout_placeholder';
   process.env.GITHUB_WEBHOOK_SECRET = 'github_live_checkout_placeholder';
+  process.env.OPERATOR_API_KEY ??= 'test_operator_api_key';
   process.env.LOG_LEVEL = 'silent';
 });
 
