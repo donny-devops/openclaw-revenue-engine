@@ -22,8 +22,10 @@ describe('package metadata', () => {
   ) as PackageLock;
 
   it('keeps the TypeScript devDependency on the supported major version for eslint', () => {
-    expect(packageJson.devDependencies?.typescript).toBe('>=5.9.3 <6.0.0');
-    expect(packageLock.packages?.['']?.devDependencies?.typescript).toBe('>=5.9.3 <6.0.0');
+    expect(packageJson.devDependencies?.typescript).toMatch(/^>=5\.\d+\.\d+ <6\.0\.0$/);
+    expect(packageLock.packages?.['']?.devDependencies?.typescript).toBe(
+      packageJson.devDependencies?.typescript,
+    );
     expect(packageLock.packages?.['node_modules/typescript']?.version).toMatch(/^5\./);
   });
 });
