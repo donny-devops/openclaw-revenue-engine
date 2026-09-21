@@ -1,8 +1,8 @@
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { resetLedger } from '../../src/billing/ledger';
 import { resetUsageMeter } from '../../src/billing/usageMeter';
+import { operatorAuthHeaders } from '../helpers/operatorAuth';
 
 beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_revenue_routes_placeholder';
@@ -13,13 +13,6 @@ beforeAll(() => {
 });
 
 import app from '../../src/index';
-
-const operatorAuthHeaders = (): Record<string, string> => {
-  const token =
-    process.env.OPERATOR_API_KEY ??
-    (process.env.JWT_SECRET ? jwt.sign({ sub: 'operator' }, process.env.JWT_SECRET) : undefined);
-  return token ? { authorization: ['Bearer', token].join(' ') } : {};
-};
 
 describe('money collection routes', () => {
   beforeEach(() => {

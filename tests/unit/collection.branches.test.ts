@@ -14,6 +14,7 @@ import {
 import { recordUsageEvent, resetUsageMeter } from '../../src/billing/usageMeter';
 import { resetStripeClient } from '../../src/billing/stripeClient';
 import { handleMcpRequest } from '../../src/mcp/server';
+import { operatorAuthHeaders } from '../helpers/operatorAuth';
 import { mockResponse } from '../helpers/fixtures';
 
 const mockCreateSession = jest.fn();
@@ -37,13 +38,6 @@ beforeAll(() => {
 });
 
 import app from '../../src/index';
-
-const operatorAuthHeaders = (): Record<string, string> => {
-  const token =
-    process.env.OPERATOR_API_KEY ??
-    (process.env.JWT_SECRET ? jwt.sign({ sub: 'operator' }, process.env.JWT_SECRET) : undefined);
-  return token ? { authorization: ['Bearer', token].join(' ') } : {};
-};
 
 describe('live Stripe checkout and error branches', () => {
   beforeEach(() => {
