@@ -32,7 +32,7 @@ describe('package manifests security regression', () => {
   });
 
   it('locks patched production dependency versions used by Trivy', () => {
-    expectVersionAtLeast(packageLock.packages['node_modules/morgan']?.version ?? '0.0.0', '1.12.0');
+    expectVersionAtLeast(packageLock.packages['node_modules/morgan']?.version ?? '0.0.0', '1.12.1');
     expectVersionAtLeast(packageLock.packages['node_modules/qs']?.version ?? '0.0.0', '6.16.0');
   });
 });
