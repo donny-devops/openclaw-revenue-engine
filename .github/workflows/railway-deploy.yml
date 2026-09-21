@@ -16,7 +16,6 @@ jobs:
   deploy:
     name: Deploy to Railway
     runs-on: ubuntu-latest
-    if: ${{ secrets.RAILWAY_TOKEN != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -34,13 +33,19 @@ jobs:
       - name: Deploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENV_ID: ${{ secrets.RAILWAY_ENV_ID }}
         run: |
           set -euo pipefail
-          args=(up --ci -m "deploy ${GITHUB_SHA}")
-          if [ -n "${{ secrets.RAILWAY_SERVICE_ID }}" ]; then
-            args+=(--service "${{ secrets.RAILWAY_SERVICE_ID }}")
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN not set; skipping deploy"
+            exit 0
           fi
-          if [ -n "${{ secrets.RAILWAY_ENV_ID }}" ]; then
-            args+=(--environment "${{ secrets.RAILWAY_ENV_ID }}")
+          args=(up --ci -m "deploy ${GITHUB_SHA}")
+          if [ -n "$RAILWAY_SERVICE_ID" ]; then
+            args+=(--service "$RAILWAY_SERVICE_ID")
+          fi
+          if [ -n "$RAILWAY_ENV_ID" ]; then
+            args+=(--environment "$RAILWAY_ENV_ID")
           fi
           railway "${args[@]}"
