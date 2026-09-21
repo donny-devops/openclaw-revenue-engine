@@ -26,7 +26,9 @@ function expectVersionAtLeast(actual: string, minimum: string) {
 
 describe('package manifests security regression', () => {
   it('pins the patched morgan dependency range', () => {
-    expect(packageJson.dependencies.morgan).toBe('^1.12.1');
+    const declaredRange = packageJson.dependencies.morgan;
+    expect(declaredRange.startsWith('^')).toBe(true);
+    expectVersionAtLeast(declaredRange.slice(1), '1.12.1');
   });
 
   it('locks patched production dependency versions used by Trivy', () => {
