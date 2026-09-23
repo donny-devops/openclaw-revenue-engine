@@ -11,6 +11,7 @@ import { usageRouter } from './routes/usage';
 import { mcpRouter } from './routes/mcp';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
+import { clerkWebhookHandler } from './webhooks/clerk.webhook';
 
 const logger = createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -53,6 +54,13 @@ app.post(
   webhookLimiter,
   express.raw({ type: 'application/json', limit: '1mb' }),
   githubWebhookHandler
+);
+
+app.post(
+  '/webhooks/clerk',
+  webhookLimiter,
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  clerkWebhookHandler
 );
 
 app.use(globalLimiter);
