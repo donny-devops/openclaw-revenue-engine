@@ -14,8 +14,6 @@ env:
   STRIPE_SECRET_KEY: sk_test_ci_placeholder
   STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
   GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
-  JWT_SECRET: ci_jwt_secret_placeholder
-  OPERATOR_API_KEY: ci_operator_api_key_placeholder
 
 permissions:
   contents: read
