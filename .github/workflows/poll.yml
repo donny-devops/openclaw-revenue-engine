@@ -45,6 +45,10 @@ jobs:
           MOLTGATE_BASE_URL: ${{ secrets.MOLTGATE_BASE_URL }}
           MOLTGATE_PROFILE_HANDLE: ${{ secrets.MOLTGATE_PROFILE_HANDLE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # PAT with `gist` + `public_repo` scopes — required for Gist publishing.
+          # The default GITHUB_TOKEN does not have gist scope.
+          # Create at github.com/settings/tokens and store as GH_PAT repo secret.
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           LOG_LEVEL: INFO
           INPUT_LANE: ${{ github.event.inputs.lane }}
         run: |
