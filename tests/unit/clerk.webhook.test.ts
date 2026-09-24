@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import { clerkWebhookHandler, resetClerkEventMemory } from '../../src/webhooks/clerk.webhook';
 import { findMerchantByOrgId, resetMerchantStore } from '../../src/services/merchant.service';
 
-const TEST_SECRET = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
-const TEST_INTERNAL_SECRET = 'mesh_internal_secret_key_998877';
+const TEST_SECRET = 'whsec_test_fixture_placeholder_00000000';
+const TEST_INTERNAL_SECRET = 'mesh_internal_secret_key_placeholder';
 
 function mockResponse() {
   const res: any = {};
