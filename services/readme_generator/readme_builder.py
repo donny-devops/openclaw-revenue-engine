@@ -96,6 +96,9 @@ def build_readme(facts: RepoFacts, *, client: anthropic.Anthropic | None = None)
     The caller is responsible for publishing/persisting the result.
     """
     if client is None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set")
         client = anthropic.Anthropic()
 
     model = os.environ.get("README_GENERATOR_MODEL", DEFAULT_MODEL)

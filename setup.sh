@@ -49,7 +49,7 @@ if [[ -z "$PYTHON" ]]; then
   fail "Python 3 is not installed. Install Python >= 3.$REQUIRED_PYTHON_MINOR from https://python.org"
 fi
 
-PY_VERSION=$($PYTHON --version 2>&1 | grep -oP '\d+\.\d+')
+PY_VERSION=$($PYTHON --version 2>&1 | sed -n 's/Python \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
 PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
 if (( PY_MINOR < REQUIRED_PYTHON_MINOR )); then
   fail "Python 3.$REQUIRED_PYTHON_MINOR+ required (found $($PYTHON --version)). Please upgrade."
