@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Image version tag produced by the Docker workflow"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version tag to deploy (e.g. main, sha-abc1234, v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.version }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Show target image
+        run: |
+          echo "Image: ghcr.io/${{ github.repository }}:${{ inputs.version }}"
+          echo "Ref:   ${{ github.ref }}"
+
+      # TODO: add deploy step for your hosting platform, e.g.:
+      #
+      # Render (image-backed service):
+      #   uses: JorgeLNJunior/render-deploy@v1
+      #   with:
+      #     service_id: ${{ secrets.RENDER_SERVICE_ID }}
+      #     api_key:    ${{ secrets.RENDER_API_KEY }}
+      #     image_url:  ghcr.io/${{ github.repository }}:${{ inputs.version }}
+      #
+      # Fly.io:
+      #   run: flyctl deploy --image ghcr.io/${{ github.repository }}:${{ inputs.version }}
+      #   env:
+      #     FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      #
+      # Railway:
+      #   run: railway up --detach
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
