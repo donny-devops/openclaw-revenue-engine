@@ -83,20 +83,24 @@ export function mockRequest(
     method: string;
   }> = {}
 ): Partial<Request> {
-  const headers: Record<string, string> = overrides.headers ?? {};
   return {
     body: overrides.body ?? {},
-    headers,
+    headers: overrides.headers ?? {},
     path: overrides.path ?? '/',
     method: overrides.method ?? 'GET',
-    get(name: string) {
-      return headers[name.toLowerCase()];
+    get(this: { headers: Record<string, string> }, name: string) {
+      return this.headers[name.toLowerCase()];
     },
   } as unknown as Partial<Request>;
 }
 
 /**
  * Creates a mock Express Response that captures status + json calls.
+ *
+ * Returned object is mutated in place by the mock res methods. Read
+ * `captured.statusCode` / `captured.body` AFTER invoking the handler.
+ * Do not destructure these fields before the handler runs — destructuring
+ * snapshots the primitive at that moment and won't reflect later mutations.
  */
 export function mockResponse(): MockResponse {
   const captured: MockResponse = {

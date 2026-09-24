@@ -1,17 +1,40 @@
-Readme · MD
-Copy
+# 💳 OpenClaw Revenue Engine
 
-# 🦞💰 OpenClaw Revenue Engine
- 
-**Monetize autonomous AI agents through Moltgate's paid inbox layer.**
- 
-> Turn your self-hosted OpenClaw agent into a revenue-generating machine - accept paid consulting requests, triage inbound by intent, and deliver AI-powered support services through priced message lanes.
- 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-FF6B6B?logo=lobster&logoColor=white)](https://github.com/openclaw/openclaw)
-[![Moltgate](https://img.shields.io/badge/Moltgate-Integrated-7C3AED)](https://moltgate.com)
- 
+[![CI](https://github.com/donny-devops/openclaw-revenue-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/donny-devops/openclaw-revenue-engine/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/donny-devops/openclaw-revenue-engine?style=flat-square)](https://codecov.io/gh/donny-devops/openclaw-revenue-engine)
+[![Release](https://img.shields.io/github/v/release/donny-devops/openclaw-revenue-engine?style=flat-square)](https://github.com/donny-devops/openclaw-revenue-engine/releases)
+[![License](https://img.shields.io/github/license/donny-devops/openclaw-revenue-engine?style=flat-square)](LICENSE)
+
+> Resilient payment routing, subscription billing engine, and automated financial webhook reconciliation pipeline.
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+flowchart LR
+    WebhookIngress[Payment Webhook Ingress] --> SignatureValidator[HMAC Signature Validator]
+    SignatureValidator --> Queue[(Redis / SQS Message Queue)]
+    Queue --> ReconciliationWorker[Reconciliation Worker]
+    ReconciliationWorker <--> Postgres[(Ledger & Event Store DB)]
+    ReconciliationWorker --> NotificationSink[ERP / Accounting Webhook Dispatch]
+```
+
+---
+
+## ⚡ Quickstart
+
+```bash
+# 1. Clone
+git clone https://github.com/donny-devops/openclaw-revenue-engine.git && cd openclaw-revenue-engine
+
+# 2. Configure Environment
+cp .env.example .env
+
+# 3. Launch Engine & Ledger Database
+docker compose up -d # Runs Engine API, Postgres Ledger, and Queue
+```
+
 ---
  
 ## What Is This?
@@ -113,17 +136,13 @@ openclaw-revenue-engine/
 ├── src/
 │   ├── agent/          # OpenClaw agent configuration and skills
 │   ├── engine/         # Core revenue engine — polling, triage, routing
-│   ├── lanes/          # TypeScript lane stubs (Stripe/webhook-based)
+│   ├── lanes/          # Lane-specific handlers (Ping, Standard, Priority, Ultra, Micro)
 │   ├── services/       # Service catalog definitions and execution logic
 │   └── utils/          # Helpers — logging, rate limiting, error handling
 ├── config/
-│   └── lanes.yaml      # Lane slug → handler routing map
-├── lanes/              # Python lane handlers (Moltgate polling)
-├── services/           # Python service modules (readme_generator, moltgate_client)
+│   └── lanes.json      # Lane pricing, SLA, and routing rules
 ├── .env.example        # Template environment variables
 ├── .gitignore
-├── main.py             # Python polling entry point (cron via poll.yml)
-├── requirements.txt    # Python dependencies
 ├── package.json
 └── README.md
 ```
@@ -140,22 +159,41 @@ openclaw-revenue-engine/
 | **Priority** | High-urgency business requests | $25–$75 | 4 hours |
 | **Ultra** | Premium agent workflows, heavy runtime | $75–$200+ | 1 hour |
  
-Lanes are fully configurable in `config/lanes.yaml`. Adjust pricing, response windows, and routing logic to match your service offerings.
+Lanes are fully configurable in `config/lanes.json`. Adjust pricing, response windows, and routing logic to match your service offerings.
+
+### Current default offers
+
+| Lane | Price | SLA |
+|------|-------|-----|
+| **small-request** | $19 | 24 hours |
+| **detailed-request** | $29 | 12 hours |
+| **real-offer** | $49 | 6 hours |
+
+### Money collection APIs
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/revenue/checkout` | Create a Stripe or simulated Checkout session |
+| `POST` | `/revenue/payments/:id/collect` | Complete a simulated payment (non-production) |
+| `GET` | `/revenue/earnings` | Operator earnings snapshot |
+| `POST` | `/usage/events` | Record metered usage |
+| `POST` | `/mcp` | MCP JSON-RPC tools for agents |
+
+Set `STRIPE_SECRET_KEY` to a live/test Stripe key for real collection. Placeholder keys automatically use simulated checkout. Operator routes accept `Authorization: Bearer $OPERATOR_API_KEY` or a JWT signed with `JWT_SECRET`.
  
 ---
  
 ## Service Examples
  
 The revenue engine ships with templates for common monetized agent services:
-
-- **Quick Question | AI README Generator** ($5, 20 min SLA) - Send a GitHub repo URL and get a portfolio-quality `README.md` back. Covers project overview, installation, usage, tech stack, badges, folder structure, and contributing section — all auto-generated from your actual codebase by MaxClaw. See `lanes/quick_question.py` and `services/readme_generator/`.
+ 
 - **OpenClaw Security Review** ($10) - One focused security question answered by your agent
 - **OpenClaw Hardening Audit** ($30) - Full security posture review for OpenClaw builders
 - **Ailephant AI Roadmap** - Practical AI workflow roadmaps for founders and teams
 - **DevOps Consulting** - Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
 - **Code Review** - Automated code quality and security analysis with detailed feedback
-
-Build your own services by adding a handler module under `lanes/` and registering its slug in `config/lanes.yaml`. Handlers are pure Python and run once per poll cycle of `.github/workflows/poll.yml`.
+ 
+Build your own services by adding handlers to `src/services/` and registering them in the lane routing config.
  
 ---
  

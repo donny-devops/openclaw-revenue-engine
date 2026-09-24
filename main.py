@@ -1,155 +1,238 @@
-"""
-main.py — openclaw-revenue-engine polling entry point.
+#!/usr/bin/env python3
+"""Revenue Engine poll runner.
 
-Invoked by `.github/workflows/poll.yml` on a 5-minute cron:
-
-    python main.py --once --direct-api --poll-only [--lane SLUG] [--dry-run]
-
-Loads config/lanes.yaml (lane slug -> handler path), optionally filters to a
-single lane, and dispatches each slug to its registered handler.
-
-Handlers are imported lazily via dotted path (e.g. "lanes.quick_question:handle")
-so adding a new lane only requires editing config/lanes.yaml + dropping a
-handler file into lanes/.
+This script is intentionally defensive: scheduled GitHub Actions should not fail
+just because optional Moltgate secrets are not configured yet. Real API or auth
+errors still fail fast so operators see actionable breakage.
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import logging
 import os
 import sys
-from pathlib import Path
-from typing import Any, Callable
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from typing import Any
 
-import yaml
-from dotenv import load_dotenv
-
-logger = logging.getLogger("revenue-engine")
-
-LANE_CONFIG_PATH = Path(__file__).parent / "config" / "lanes.yaml"
-
-
-def _configure_logging() -> None:
-    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
-    logging.basicConfig(
-        level=getattr(logging, level_name, logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-
-
-def _load_lane_handlers() -> dict[str, str]:
-    """Read config/lanes.yaml and return {lane_slug: handler_path}."""
-    if not LANE_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"lane config not found: {LANE_CONFIG_PATH}")
-    with LANE_CONFIG_PATH.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    handlers = data.get("handlers") or {}
-    if not isinstance(handlers, dict):
-        raise ValueError("config/lanes.yaml: 'handlers' must be a mapping")
-    return {str(k): str(v) for k, v in handlers.items()}
+DEFAULT_BASE_URL = "https://moltgate.com"
+REQUEST_TIMEOUT_SECONDS = 20
+ALLOWED_URL_SCHEMES = {"https"}
+LOCAL_URL_HOSTS = {"localhost", "127.0.0.1"}
+VALID_LOG_LEVELS = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+}
 
 
-def _resolve_handler(handler_path: str) -> Callable[..., Any]:
-    """Resolve a 'module.path:function' string to a callable."""
-    if ":" not in handler_path:
-        raise ValueError(f"handler path must be 'module:function', got {handler_path!r}")
-    module_name, func_name = handler_path.split(":", 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, func_name)
+@dataclass(frozen=True)
+class PollConfig:
+    api_key: str | None
+    base_url: str
+    profile_handle: str | None
+    lane: str | None
+    dry_run: bool
+    event_name: str
+    engine_url: str | None
 
 
-def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="revenue-engine",
-        description="Poll Moltgate lanes and dispatch to MaxClaw-backed handlers.",
-    )
-    parser.add_argument("--once", action="store_true", help="Run one poll cycle then exit (required).")
-    parser.add_argument(
-        "--direct-api",
-        action="store_true",
-        help="Use direct Moltgate REST API (currently the only supported mode).",
-    )
-    parser.add_argument(
-        "--poll-only",
-        action="store_true",
-        help="Only poll + dispatch; no other side effects. Currently implied.",
-    )
-    parser.add_argument(
-        "--lane",
-        default="",
-        help="If set, only poll this lane slug (defaults to all configured lanes).",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run handlers with publish=False and no Moltgate status mutations.",
-    )
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Poll Moltgate inbox for revenue-engine work.")
+    parser.add_argument("--once", action="store_true", help="Run one polling pass and exit.")
+    parser.add_argument("--direct-api", action="store_true", help="Use Moltgate direct API mode.")
+    parser.add_argument("--poll-only", action="store_true", help="Poll only; do not run long-lived workers.")
+    parser.add_argument("--lane", default=None, help="Optional lane slug to poll.")
+    parser.add_argument("--dry-run", action="store_true", help="Validate configuration without calling Moltgate.")
     return parser.parse_args(argv)
 
 
-def run(argv: list[str] | None = None) -> int:
-    load_dotenv()
-    _configure_logging()
-    args = _parse_args(argv if argv is not None else sys.argv[1:])
+def normalize_lane(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
+def normalize_base_url(value: str | None) -> str:
+    base_url = (value or DEFAULT_BASE_URL).rstrip("/")
+    parsed = urllib.parse.urlparse(base_url)
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"MOLTGATE_BASE_URL must use https, got {parsed.scheme or 'missing scheme'}")
+    if not parsed.netloc:
+        raise ValueError("MOLTGATE_BASE_URL must include a host")
+    return base_url
+
+
+def normalize_engine_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    engine_url = value.rstrip("/")
+    parsed = urllib.parse.urlparse(engine_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme == "http" and host in LOCAL_URL_HOSTS:
+        return engine_url
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"REVENUE_ENGINE_URL must use https, got {parsed.scheme or 'missing scheme'}")
+    if not parsed.netloc:
+        raise ValueError("REVENUE_ENGINE_URL must include a host")
+    return engine_url
+
+
+def configure_logging() -> None:
+    requested_level = (os.getenv("LOG_LEVEL") or "INFO").upper()
+    level = VALID_LOG_LEVELS.get(requested_level, logging.INFO)
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
+
+
+def load_config(args: argparse.Namespace) -> PollConfig:
+    return PollConfig(
+        api_key=os.getenv("MOLTGATE_API_KEY"),
+        base_url=normalize_base_url(os.getenv("MOLTGATE_BASE_URL")),
+        profile_handle=os.getenv("MOLTGATE_PROFILE_HANDLE"),
+        lane=normalize_lane(args.lane),
+        dry_run=bool(args.dry_run),
+        event_name=os.getenv("GITHUB_EVENT_NAME", ""),
+        engine_url=normalize_engine_url(os.getenv("REVENUE_ENGINE_URL")),
+    )
+
+
+def build_inbox_url(config: PollConfig) -> str:
+    params: dict[str, str] = {"status": "NEW"}
+    if config.lane:
+        params["lane"] = config.lane
+    if config.profile_handle:
+        params["profile"] = config.profile_handle
+
+    query_string = urllib.parse.urlencode(params)
+    return f"{config.base_url}/api/inbox/messages/?{query_string}"
+
+
+def read_json(url: str, api_key: str) -> Any:
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"Refusing to open non-HTTPS URL: {parsed_url.scheme or 'missing scheme'}")
+
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "User-Agent": "openclaw-revenue-engine-poll/1.0",
+        },
+        method="GET",
+    )
+
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # nosec B310  # skipcq: BAN-B310
+        body = response.read().decode("utf-8")
+        return json.loads(body) if body else {}
+
+
+def extract_messages(payload: Any) -> list[Any]:
+    if isinstance(payload, dict):
+        messages = payload.get("results") or payload.get("messages") or []
+    elif isinstance(payload, list):
+        messages = payload
+    else:
+        messages = []
+    return messages if isinstance(messages, list) else []
+
+
+def classify_with_engine(engine_url: str, message: dict[str, Any]) -> dict[str, Any]:
+    body = str(message.get("body") or message.get("content") or message.get("text") or "").strip()
+    if not body:
+        raise ValueError("Paid request body is empty")
+
+    payload = json.dumps(
+        {
+            "title": str(message.get("title") or message.get("subject") or ""),
+            "body": body,
+            "lane": message.get("lane"),
+            "source": "moltgate",
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{engine_url}/revenue/classify",
+        data=payload,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "openclaw-revenue-engine-poll/1.0",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # nosec B310  # skipcq: BAN-B310
+        raw = response.read().decode("utf-8")
+        parsed = json.loads(raw) if raw else {}
+        if not isinstance(parsed, dict):
+            raise ValueError("Revenue engine returned a non-object classify payload")
+        return parsed
+
+
+def poll_inbox(config: PollConfig) -> int:
+    if config.dry_run:
+        logging.info("Dry run enabled; validated poll configuration without API call.")
+        return 0
+
+    if not config.api_key:
+        if config.event_name == "schedule":
+            logging.warning("MOLTGATE_API_KEY is not configured; skipping scheduled poll without failure.")
+            return 0
+        raise RuntimeError("MOLTGATE_API_KEY is required for manual poll runs. Use dry_run=true to validate only.")
+
+    payload = read_json(build_inbox_url(config), config.api_key)
+    messages = extract_messages(payload)
+
+    if config.engine_url:
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            try:
+                classification = classify_with_engine(config.engine_url, message)
+                logging.info(
+                    "Classified Moltgate message into %s / %s.",
+                    classification.get("classification", {}).get("lane", {}).get("slug", "unknown"),
+                    classification.get("classification", {}).get("service", {}).get("slug", "unknown"),
+                )
+            except Exception as exc:  # noqa: BLE001
+                logging.warning("Revenue engine classification failed: %s", exc)
+
+    logging.info("Poll completed: %s new message(s)%s.", len(messages), f" for lane {config.lane}" if config.lane else "")
+    return len(messages)
+
+
+def main(argv: list[str] | None = None) -> int:
+    configure_logging()
+
+    args = parse_args(argv if argv is not None else sys.argv[1:])
 
     if not args.once:
-        logger.error("main.py currently requires --once; continuous loop not implemented")
-        return 2
+        logging.warning("Long-running mode is not implemented; executing one poll pass.")
 
     try:
-        handlers = _load_lane_handlers()
-    except Exception as e:  # noqa: BLE001
-        logger.error("failed to load lane config: %s", e)
-        return 3
+        poll_inbox(load_config(args))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            logging.error("Moltgate API authentication failed. Check MOLTGATE_API_KEY.")
+        elif exc.code == 403:
+            logging.error("Moltgate API authorization failed. Check token scopes/profile access.")
+        elif exc.code == 404:
+            logging.error("Moltgate inbox endpoint was not found at %s.", exc.url)
+        else:
+            logging.error("Moltgate API request failed with HTTP %s: %s", exc.code, exc.reason)
+        return 1
+    except (ValueError, RuntimeError, urllib.error.URLError, TimeoutError) as exc:
+        logging.error("Moltgate poll request failed: %s", exc)
+        return 1
 
-    if args.lane:
-        handlers = {k: v for k, v in handlers.items() if k == args.lane}
-        if not handlers:
-            logger.warning("no handler registered for lane %r; nothing to do", args.lane)
-            return 0
-
-    total_processed = 0
-    total_errors = 0
-
-    for lane_slug, handler_path in handlers.items():
-        logger.info("dispatching lane=%s -> %s", lane_slug, handler_path)
-        try:
-            handler = _resolve_handler(handler_path)
-        except Exception as e:  # noqa: BLE001
-            logger.error("failed to resolve %s: %s", handler_path, e)
-            total_errors += 1
-            continue
-
-        try:
-            result = handler(lane_slug=lane_slug, dry_run=args.dry_run)
-        except Exception:  # noqa: BLE001
-            logger.exception("handler %s crashed", handler_path)
-            total_errors += 1
-            continue
-
-        # Best-effort result reporting; each handler returns its own shape.
-        summary: dict[str, Any] = {}
-        if hasattr(result, "__dict__"):
-            summary = {
-                k: v for k, v in result.__dict__.items()
-                if k in {"processed", "skipped", "errors"}
-            }
-            total_processed += int(getattr(result, "processed", 0) or 0)
-            total_errors += int(getattr(result, "errors", 0) or 0)
-        logger.info("lane=%s result=%s", lane_slug, json.dumps(summary, default=str))
-
-    logger.info(
-        "poll cycle done: lanes=%d processed=%d errors=%d dry_run=%s",
-        len(handlers),
-        total_processed,
-        total_errors,
-        args.dry_run,
-    )
-    return 0 if total_errors == 0 else 1
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(run())
+    raise SystemExit(main())

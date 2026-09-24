@@ -1,0 +1,51 @@
+name: Railway Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENV_ID: ${{ secrets.RAILWAY_ENV_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN not set; skipping deploy"
+            exit 0
+          fi
+          args=(up --ci -m "deploy ${GITHUB_SHA}")
+          if [ -n "$RAILWAY_SERVICE_ID" ]; then
+            args+=(--service "$RAILWAY_SERVICE_ID")
+          fi
+          if [ -n "$RAILWAY_ENV_ID" ]; then
+            args+=(--environment "$RAILWAY_ENV_ID")
+          fi
+          railway "${args[@]}"

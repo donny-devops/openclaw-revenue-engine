@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0.0",
+  "currency": "USD",
+  "lanes": [
+    {
+      "slug": "small-request",
+      "name": "Small Request",
+      "price": 19,
+      "sla_hours": 24,
+      "capabilities": [
+        "quick_question",
+        "light_repo_review",
+        "single_issue_guidance"
+      ],
+      "deliverables": [
+        "concise_answer",
+        "next_step_list",
+        "copy_paste_snippet_when_applicable"
+      ],
+      "max_input_chars": 3000,
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "detailed-request",
+      "name": "Detailed Request",
+      "price": 29,
+      "sla_hours": 12,
+      "capabilities": [
+        "repo_triage",
+        "workflow_debug",
+        "implementation_plan",
+        "configuration_review"
+      ],
+      "deliverables": [
+        "triage_report",
+        "fix_plan",
+        "copy_paste_code",
+        "validation_checklist"
+      ],
+      "max_input_chars": 8000,
+      "human_review_required": true,
+      "enabled": true
+    },
+    {
+      "slug": "real-offer",
+      "name": "Real Offer",
+      "price": 49,
+      "sla_hours": 6,
+      "capabilities": [
+        "ci_debug",
+        "security_triage",
+        "branch_pr_plan",
+        "offer_packaging",
+        "repo_hardening"
+      ],
+      "deliverables": [
+        "root_cause_report",
+        "solution_patch",
+        "pr_summary",
+        "delivery_ready_offer"
+      ],
+      "max_input_chars": 15000,
+      "human_review_required": true,
+      "enabled": true
+    }
+  ]
+}

@@ -1,2 +1,53 @@
-- name: Super-Linter
-  uses: super-linter/super-linter@v8.6.0
+name: Super-Linter (Advisory)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  lint:
+    name: Super-Linter (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Super-Linter
+        # Advisory-only signal while the repository keeps linting requirements in CI.
+        continue-on-error: true
+        uses: super-linter/super-linter@v8.7.0
+        env:
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          # JS/TS already uses the existing ESLint workflow.
+          VALIDATE_JAVASCRIPT_ES: false
+          VALIDATE_TYPESCRIPT_ES: false
+          VALIDATE_JSCPD: false
+          # Biome is an alternative JS/TS linter/formatter.
+          VALIDATE_BIOME_LINT: false
+          VALIDATE_BIOME_FORMAT: false
+          # Repo style is single-quote with 2-space indent.
+          VALIDATE_JAVASCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
+          # Markdown/JSON/YAML checks are intentionally manual in this advisory workflow.
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
+          VALIDATE_JSON_PRETTIER: false
+          VALIDATE_YAML: false
+          VALIDATE_YAML_PRETTIER: false
+          # Dockerfile/IaC vulnerability scanning is owned by Trivy.
+          VALIDATE_CHECKOV: false
+          # Action security scanning belongs in a separate hardening PR.
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
+          # Keep least-privilege permissions; do not write PR comments.
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false

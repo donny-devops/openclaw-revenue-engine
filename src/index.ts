@@ -6,17 +6,12 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createLogger, format, transports } from 'winston';
 
+import { revenueRouter } from './routes/revenue';
+import { usageRouter } from './routes/usage';
+import { mcpRouter } from './routes/mcp';
 import { stripeWebhookHandler } from './webhooks/stripe.webhook';
 import { githubWebhookHandler } from './webhooks/github.webhook';
-
-/**
- * Wrap a synchronous (req, res) handler as Express middleware.
- * Unlike a bare `as RequestHandler` cast this will surface a type error
- * if the handler signature ever changes (e.g. becomes async).
- */
-function syncHandler(fn: (req: express.Request, res: express.Response) => void): express.RequestHandler {
-  return (req, res, _next) => fn(req, res);
-}
+import { clerkWebhookHandler } from './webhooks/clerk.webhook';
 
 const logger = createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -29,7 +24,7 @@ const logger = createLogger({
 });
 
 const app: Application = express();
-const PORT = process.env.PORT ?? 3000;
+app.set('trust proxy', 1);
 
 const globalLimiter = rateLimit({
   windowMs: 60_000,
@@ -50,15 +45,22 @@ const webhookLimiter = rateLimit({
 app.post(
   '/webhooks/stripe',
   webhookLimiter,
-  express.raw({ type: 'application/json' }),
-  syncHandler(stripeWebhookHandler)
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  stripeWebhookHandler
 );
 
 app.post(
   '/webhooks/github',
   webhookLimiter,
-  express.raw({ type: 'application/json' }),
-  syncHandler(githubWebhookHandler)
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  githubWebhookHandler
+);
+
+app.post(
+  '/webhooks/clerk',
+  webhookLimiter,
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  clerkWebhookHandler
 );
 
 app.use(globalLimiter);
@@ -67,7 +69,10 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   credentials: process.env.CORS_CREDENTIALS === 'true',
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use('/revenue', revenueRouter);
+app.use('/usage', usageRouter);
+app.use('/mcp', mcpRouter);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -78,6 +83,15 @@ app.get('/', (_req: Request, res: Response) => {
     name: 'openclaw-revenue-engine',
     version: process.env.npm_package_version ?? '1.0.0',
     docs: '/health',
+    revenue: '/revenue/summary',
+    lanes: '/revenue/lanes',
+    services: '/revenue/services',
+    agents: '/revenue/agents',
+    checkout: '/revenue/checkout',
+    earnings: '/revenue/earnings',
+    usage: '/usage/summary',
+    mcp: '/mcp',
+    openclaw: '/revenue/openclaw',
   });
 });
 
@@ -86,18 +100,29 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const status =
+    (err as { status?: number; statusCode?: number }).status ??
+    (err as { status?: number; statusCode?: number }).statusCode ??
+    500;
+
   logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
+    status,
   });
+
+  if (status === 413) {
+    res.status(413).json({ error: 'Payload Too Large' });
+    return;
+  }
+  if (status >= 400 && status < 500) {
+    res.status(status).json({ error: err.message || 'Bad Request' });
+    return;
+  }
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
-  logger.info(`[openclaw-revenue-engine] Listening on port ${PORT}`);
-});
-
-export { logger };
+export { app, logger };
 export default app;

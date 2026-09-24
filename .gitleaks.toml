@@ -1,0 +1,26 @@
+title = "openclaw-revenue-engine secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repository-specific false positives and documentation placeholders"
+paths = [
+  '''node_modules''',
+  '''dist''',
+  '''coverage''',
+  '''package-lock\.json''',
+  '''\.env\.example''',
+  '''tests/unit/clerk\.webhook\.test\.ts'''
+]
+regexes = [
+  '''sk_test_[a-zA-Z0-9_]*placeholder''',
+  '''whsec_[a-zA-Z0-9_]*placeholder''',
+  '''github_[a-zA-Z0-9_]*placeholder''',
+  '''sk_test_your_stripe_secret_key_here''',
+  '''pk_test_your_stripe_publishable_key_here''',
+  '''whsec_your_webhook_secret_here''',
+  '''change_me_to_a_long_random_secret_in_production''',
+  '''change_me_to_a_long_random_operator_key''',
+  '''your_moltgate_api_key_here'''
+]

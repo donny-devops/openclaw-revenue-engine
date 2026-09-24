@@ -70,6 +70,9 @@ web_modules/
 .env.*
 !.env.example
 
+# Local agent memory
+.memory/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -149,9 +152,6 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
-# openclaw-revenue-engine — lane delivery audit log
-deliveries.jsonl
 
 # OS
 .DS_Store
