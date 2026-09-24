@@ -130,7 +130,7 @@ def test_build_readme_calls_claude_and_returns_markdown():
         assert section in result, f"missing section: {section}"
 
     # Badges: at least the MaxClaw badge + license
-    assert "img.shields.io" in result
+    assert "https://img.shields.io/badge/" in result
     assert "MaxClaw" in result
 
 
