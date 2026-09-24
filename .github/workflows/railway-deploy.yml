@@ -38,8 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "RAILWAY_TOKEN not set; skipping deploy"
-            exit 0
+            echo "::error::RAILWAY_TOKEN is not set as a repo secret. Nothing was deployed. Run: gh secret set RAILWAY_TOKEN --repo ${{ github.repository }}"
+            exit 1
           fi
           args=(up --ci -m "deploy ${GITHUB_SHA}")
           if [ -n "$RAILWAY_SERVICE_ID" ]; then
@@ -49,3 +49,28 @@ jobs:
             args+=(--environment "$RAILWAY_ENV_ID")
           fi
           railway "${args[@]}"
+
+      - name: Verify deploy is healthy
+        env:
+          HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "::warning::RAILWAY_HEALTHCHECK_URL is not set — skipping post-deploy health verification. The deploy command succeeded, but nothing confirmed the app actually came up healthy. Set this secret to your production /health URL to close this gap."
+            exit 0
+          fi
+          echo "Polling $HEALTHCHECK_URL for a healthy response..."
+          for attempt in $(seq 1 10); do
+            if status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTHCHECK_URL"); then
+              if [ "$status" = "200" ]; then
+                echo "Healthy (HTTP $status) after $attempt attempt(s)."
+                exit 0
+              fi
+              echo "Attempt $attempt: HTTP $status, retrying..."
+            else
+              echo "Attempt $attempt: request failed, retrying..."
+            fi
+            sleep 6
+          done
+          echo "::error::Deploy finished but $HEALTHCHECK_URL never returned HTTP 200 after 10 attempts."
+          exit 1
