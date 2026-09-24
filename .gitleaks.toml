@@ -10,7 +10,8 @@ paths = [
   '''dist''',
   '''coverage''',
   '''package-lock\.json''',
-  '''\.env\.example'''
+  '''\.env\.example''',
+  '''tests/unit/clerk\.webhook\.test\.ts'''
 ]
 regexes = [
   '''sk_test_[a-zA-Z0-9_]*placeholder''',
