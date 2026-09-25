@@ -79,10 +79,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
       - name: Dry-run poll
         env:
           INPUT_DRY_RUN: "true"
         run: python main.py --once --direct-api --poll-only --dry-run
 
       - name: Unit tests
-        run: python -m unittest discover -s tests/python -p "test_*.py"
+        run: pytest tests/unit/ -v

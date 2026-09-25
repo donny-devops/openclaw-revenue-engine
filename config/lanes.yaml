@@ -1,0 +1,25 @@
+# config/lanes.yaml
+#
+# Routing map: Moltgate lane slug -> Python handler.
+#
+# The authoritative lane config (price, public description, sender_url label,
+# SLA, is_active) lives on Moltgate itself and is fetched via
+# `GET /api/lanes/`. This file only answers the question "when a NEW message
+# arrives in lane <slug>, which handler runs it?".
+
+handlers:
+  # Quick Question | Agent Contact
+  #
+  # Configure this lane on Moltgate with:
+  #   price_cents:         500                    # $5
+  #   allow_sender_url:    true
+  #   sender_url_label:    "GitHub repo URL"
+  #   sender_url_required: true
+  #   description: |
+  #     Send your GitHub repo URL and get a professional, portfolio-quality
+  #     README.md back. Covers project overview, installation, usage, tech
+  #     stack, badges, folder structure, and contributing section — all
+  #     auto-generated from your actual codebase.
+  #
+  # SLA: 20 minutes from "paid message received" to "Gist delivered".
+  quick-question-readme-generator: lanes.quick_question:handle
