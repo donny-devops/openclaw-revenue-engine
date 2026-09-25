@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Image version tag produced by the Docker workflow"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version tag to deploy (e.g. main, sha-abc1234, v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.version }} to Render
+    runs-on: ubuntu-latest
+    # Requires repo secrets: RENDER_SERVICE_ID, RENDER_API_KEY
+    # Set them at Settings → Secrets → Actions in the GitHub repo.
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          echo "Deploying ghcr.io/${{ github.repository }}:${{ inputs.version }} to Render …"
+          response=$(curl -fsSL \
+            --retry 3 --retry-delay 5 \
+            -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache": false}')
+          echo "$response"
+          deploy_id=$(echo "$response" | jq -r '.deploy.id // empty')
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render deploy API did not return a deploy ID — check RENDER_SERVICE_ID and RENDER_API_KEY secrets."
+            exit 1
+          fi
+          echo "Deploy triggered: $deploy_id"
+          echo "Track it at: https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id"

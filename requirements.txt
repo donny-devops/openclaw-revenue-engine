@@ -1,1 +1,4 @@
-# Poll runner currently uses Python standard library only.
+anthropic>=0.40.0
+PyGithub>=2.3.0
+requests>=2.32.0
+tenacity>=9.0.0
