@@ -42,12 +42,26 @@ jobs:
     timeout-minutes: 10
     continue-on-error: true
     steps:
+      - name: Check ANTHROPIC_API_KEY is configured
+        id: check-key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY secret is not set — skipping PR review"
+          fi
+
       - name: Check out PR
+        if: steps.check-key.outputs.has_key == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Claude Code review
+        if: steps.check-key.outputs.has_key == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
