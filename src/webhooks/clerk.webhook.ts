@@ -12,10 +12,13 @@ const processedEvents = new Set<string>();
 export function verifySvixSignature(
   rawBody: string | Buffer,
   headers: Record<string, string | string[] | undefined>,
-  secret: string
+  secret: string | undefined
 ): boolean {
   const serviceSig = headers['x-service-signature'] as string;
-  const internalSecret = process.env.INTERNAL_SERVICE_SECRET || 'mesh_internal_secret_key_998877';
+  // No fallback: an unset INTERNAL_SERVICE_SECRET must never validate a
+  // request. A previously-hardcoded default here would have let anyone who
+  // knew that constant bypass Svix verification entirely.
+  const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
 
   if (serviceSig && internalSecret) {
     const rawBodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf-8') : rawBody;
@@ -96,8 +99,16 @@ export async function clerkWebhookHandler(
   req: Request,
   res: Response
 ): Promise<void> {
-  const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET || 'whsec_test_secret_key_12345';
+  // No fallback: an unset secret must fail signature verification, not
+  // silently validate against a known test value.
+  const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
   const rawBody = req.body as Buffer;
+
+  if (!secret && !process.env.INTERNAL_SERVICE_SECRET) {
+    console.error('Neither CLERK_WEBHOOK_SIGNING_SECRET nor INTERNAL_SERVICE_SECRET is configured — refusing webhook');
+    res.status(500).json({ error: 'Webhook verification not configured' });
+    return;
+  }
 
   const isValid = verifySvixSignature(rawBody, req.headers, secret);
   if (!isValid) {
