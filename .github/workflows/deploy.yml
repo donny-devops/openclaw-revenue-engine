@@ -42,3 +42,29 @@ jobs:
           fi
           echo "Deploy triggered: $deploy_id"
           echo "Track it at: https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id"
+          echo "deploy_id=$deploy_id" >> "$GITHUB_ENV"
+
+      - name: Smoke test — wait for service to be live
+        run: |
+          # Fetch the service URL from the Render API
+          service_info=$(curl -fsSL \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}")
+          service_url=$(echo "$service_info" | jq -r '.service.serviceDetails.url // .serviceDetails.url // empty')
+          if [ -z "$service_url" ]; then
+            echo "::warning::Could not resolve service URL from Render API — skipping smoke test"
+            exit 0
+          fi
+          health_url="${service_url}/health"
+          echo "Polling $health_url (up to 5 min, 10 s intervals)…"
+          for i in $(seq 1 30); do
+            http_status=$(curl -o /dev/null -s -w "%{http_code}" "$health_url" || echo "000")
+            if [ "$http_status" = "200" ]; then
+              echo "✓ Health check passed on attempt $i ($health_url → 200)"
+              exit 0
+            fi
+            echo "  attempt $i: $http_status — retrying in 10 s"
+            sleep 10
+          done
+          echo "::error::Health check timed out after 5 minutes ($health_url never returned 200)"
+          exit 1
