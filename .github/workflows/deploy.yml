@@ -35,7 +35,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"clearCache": "do_not_clear"}')
           echo "$response"
-          deploy_id=$(echo "$response" | jq -r '.deploy.id // empty')
+          deploy_id=$(echo "$response" | jq -r '.id // .deploy.id // empty')
           if [ -z "$deploy_id" ]; then
             echo "::error::Render deploy API did not return a deploy ID — check RENDER_SERVICE_ID and RENDER_API_KEY secrets."
             exit 1
