@@ -64,7 +64,7 @@ jobs:
           echo "Triggering Render deploy for service: $RENDER_SERVICE_ID..."
           response=$(curl -s -w "\n%{http_code}" -X POST \
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${rnd_nubQ8pdrFrJsnbl5G0WehQE0cvqB}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Accept: application/json" \
             -H "Content-Type: application/json" \
             -d '{"clearCache": "do_not_clear"}')
