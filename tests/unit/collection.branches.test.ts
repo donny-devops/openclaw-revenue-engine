@@ -14,6 +14,7 @@ import {
 import { recordUsageEvent, resetUsageMeter } from '../../src/billing/usageMeter';
 import { resetStripeClient } from '../../src/billing/stripeClient';
 import { handleMcpRequest } from '../../src/mcp/server';
+import { operatorAuthHeaders } from '../helpers/operatorAuth';
 import { mockResponse } from '../helpers/fixtures';
 
 const mockCreateSession = jest.fn();
@@ -33,6 +34,7 @@ beforeAll(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_live_checkout_key_123456';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_live_checkout_placeholder';
   process.env.GITHUB_WEBHOOK_SECRET = 'github_live_checkout_placeholder';
+  process.env.OPERATOR_API_KEY ??= 'test_operator_api_key';
   process.env.LOG_LEVEL = 'silent';
 });
 
@@ -111,10 +113,12 @@ describe('live Stripe checkout and error branches', () => {
     const missing = await request(app).get('/revenue/payments/pay_missing');
     expect(missing.status).toBe(404);
 
-    const collect = await request(app).post('/revenue/payments/pay_missing/collect');
+    const collect = await request(app)
+      .post('/revenue/payments/pay_missing/collect')
+      .set(operatorAuthHeaders());
     expect([400, 404]).toContain(collect.status);
 
-    const usage = await request(app).post('/usage/events').send({ tenant_id: 't1' });
+    const usage = await request(app).post('/usage/events').set(operatorAuthHeaders()).send({ tenant_id: 't1' });
     expect(usage.status).toBe(400);
 
     const classify = await request(app).post('/revenue/classify').send({
@@ -139,7 +143,7 @@ describe('live Stripe checkout and error branches', () => {
     const payments = await handleMcpRequest({ method: 'tools/call', id: 6, params: { name: 'list_payments' } });
     const unknown = await handleMcpRequest({ method: 'tools/call', id: 7, params: { name: 'nope' } });
     const badMethod = await handleMcpRequest({ method: 'not-a-method', id: 8 });
-    const mcpHttp = await request(app).post('/mcp').send({ jsonrpc: '2.0', id: 1 });
+    const mcpHttp = await request(app).post('/mcp').set(operatorAuthHeaders()).send({ jsonrpc: '2.0', id: 1 });
 
     expect(lanes.error).toBeUndefined();
     expect(services.error).toBeUndefined();
