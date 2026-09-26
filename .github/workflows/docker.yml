@@ -56,30 +56,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Render deploy
-        env:
-          RENDER_API_KEY: $REDACTED
-          RENDER_SERVICE_ID: $REDACTED
-        run: |
-          echo "Triggering Render deploy for service: $RENDER_SERVICE_ID..."
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": "do_not_clear"}')
-
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          echo "Response: $body"
-          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-            echo "Deploy triggered successfully!"
-          else
-            echo "Failed with HTTP status $http_code"
-            exit 1
-          fi
-
   deploy:
     name: Deploy
     needs: build-and-push
