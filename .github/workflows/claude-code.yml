@@ -43,7 +43,7 @@ jobs:
       id-token: write # Required for OIDC token generation
       contents: read # Add any other permissions the job needs (e.g., contents: write if pushing)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
     timeout-minutes: 10
     continue-on-error: true
     steps:
@@ -61,7 +61,7 @@ jobs:
 
       - name: Check out PR
         if: steps.check-key.outputs.has_key == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -104,13 +104,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
