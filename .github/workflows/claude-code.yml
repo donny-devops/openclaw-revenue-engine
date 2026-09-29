@@ -39,6 +39,11 @@ jobs:
   review-readme-generator-pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions: 
+      id-token: write # Required for OIDC token generation
+      contents: read # Add any other permissions the job needs (e.g., contents: write if pushing)
+    steps:
+      - uses: actions/checkout@v4
     timeout-minutes: 10
     continue-on-error: true
     steps:
