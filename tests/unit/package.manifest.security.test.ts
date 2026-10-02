@@ -42,5 +42,11 @@ describe('package manifests security regression', () => {
     qsVersions.forEach((version) => {
       expectVersionAtLeast(version, '6.16.0');
     });
+
+    const ipAddressVersions = packageVersionsFor('ip-address');
+    expect(ipAddressVersions.length).toBeGreaterThan(0);
+    ipAddressVersions.forEach((version) => {
+      expectVersionAtLeast(version, '10.7.1');
+    });
   });
 });
