@@ -10,7 +10,20 @@ name: Claude Code — MaxClaw Maintenance
 # Both jobs inherit ANTHROPIC_API_KEY from repo secrets (already wired by
 # .github/workflows/poll.yml).
 
-on:
+on : 
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "services/readme_generator/**"
+      - "Lanes/quick_question.py"
+      - "main.py"
+      - "config/lanes.yaml"
+      
+  schedue:
+    # Weekly: Mondays 09:00 UTC
+    - cron : "0 9 * * 1"
+  workflow_dispatch:
+  
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -23,10 +36,11 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+ permissions:
+  id-token: write       # Required for Claude Code OIDC authentication
+  contents: write       # Needed to push code / open tuning branches
+  pull-requests: write  # Needed to comment on and open PRs
+  issues: write         # Needed if Claude Code creates/updates issues
 
 concurrency:
   group: claude-code-${{ github.event_name }}-${{ github.ref }}
