@@ -65,5 +65,8 @@
     "typescript",
     "nodejs"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "proxy-addr": "^2.0.8"
+  }
 }
