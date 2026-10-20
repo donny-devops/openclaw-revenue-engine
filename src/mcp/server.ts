@@ -2,6 +2,18 @@ import { assignAgents, listEnabledAgents } from '../agents/orchestrator';
 import { createLaneCheckout } from '../billing/checkout';
 import { getEarningsSnapshot, listPayments } from '../billing/ledger';
 import { classifyPaidRequest, listRevenueLanes, listRevenueServices } from '../revenue/serviceCatalog';
+import {
+  createSaraPlusOrder,
+  draftHandoffMessage,
+  getWorkflow,
+  listOrdersNeedingFollowUp,
+  listSaraPlusOrders,
+  parseHandoffChannel,
+  parseOrderStatus,
+  parseWaitingOn,
+  reviewSellerAction,
+  updateSaraPlusOrder,
+} from '../saraPlus';
 
 export interface McpTool {
   name: string;
@@ -81,6 +93,52 @@ const tools: McpTool[] = [
     description: 'List payment collection records.',
     inputSchema: { type: 'object', properties: {} },
   },
+  {
+    name: 'sara_plus_workflow',
+    description: 'Return the allowed SARA Plus seller-side touchless checklist and compliance limits.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'sara_plus_review_action',
+    description: 'Classify a SARA Plus action as allowed seller-side work or a blocked customer-secure step.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        step: { type: 'string' },
+        text: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'sara_plus_orders',
+    description: 'Create, update, list, or remind on SARA Plus seller orders waiting on the customer.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['list', 'create', 'update', 'reminders'] },
+        id: { type: 'string' },
+        customer_display_name: { type: 'string' },
+        order_ref: { type: 'string' },
+        status: { type: 'string' },
+        last_step: { type: 'string' },
+        waiting_on: { type: 'string' },
+        notes: { type: 'string' },
+        stale_minutes: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'sara_plus_draft_handoff',
+    description: 'Draft SMS/email copy that accompanies the SARA Plus secure link without collecting customer secrets.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: { type: 'string' },
+        customer_first_name: { type: 'string' },
+        seller_name: { type: 'string' },
+      },
+    },
+  },
 ];
 
 const asString = (value: unknown): string | undefined =>
@@ -123,6 +181,62 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
       return { earnings: getEarningsSnapshot() };
     case 'list_payments':
       return { payments: listPayments() };
+    case 'sara_plus_workflow':
+      return { workflow: getWorkflow() };
+    case 'sara_plus_review_action':
+      return {
+        verdict: reviewSellerAction({
+          step: asString(args.step),
+          text: asString(args.text),
+        }),
+      };
+    case 'sara_plus_orders': {
+      const action = asString(args.action) ?? 'list';
+      if (action === 'create') {
+        return {
+          order: createSaraPlusOrder({
+            customer_display_name: asString(args.customer_display_name),
+            order_ref: asString(args.order_ref),
+            status: parseOrderStatus(asString(args.status)),
+            last_step: asString(args.last_step),
+            waiting_on: parseWaitingOn(asString(args.waiting_on)),
+            notes: asString(args.notes),
+          }),
+        };
+      }
+      if (action === 'update') {
+        const id = asString(args.id);
+        if (!id) throw new Error('id is required');
+        return {
+          order: updateSaraPlusOrder(id, {
+            customer_display_name: asString(args.customer_display_name),
+            order_ref: asString(args.order_ref),
+            status: parseOrderStatus(asString(args.status)),
+            last_step: asString(args.last_step),
+            waiting_on: parseWaitingOn(asString(args.waiting_on)),
+            notes: asString(args.notes),
+          }),
+        };
+      }
+      if (action === 'reminders') {
+        const staleMinutes = typeof args.stale_minutes === 'number' ? args.stale_minutes : undefined;
+        return {
+          orders: listOrdersNeedingFollowUp(
+            Date.now(),
+            staleMinutes && staleMinutes > 0 ? staleMinutes * 60 * 1000 : undefined,
+          ),
+        };
+      }
+      return { orders: listSaraPlusOrders() };
+    }
+    case 'sara_plus_draft_handoff':
+      return {
+        draft: draftHandoffMessage({
+          channel: parseHandoffChannel(asString(args.channel)),
+          customer_first_name: asString(args.customer_first_name),
+          seller_name: asString(args.seller_name),
+        }),
+      };
     default:
       throw new Error(`Unknown MCP tool: ${name}`);
   }

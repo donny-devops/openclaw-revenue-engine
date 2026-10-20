@@ -189,6 +189,7 @@ The revenue engine ships with templates for common monetized agent services:
  
 - **OpenClaw Security Review** ($10) - One focused security question answered by your agent
 - **OpenClaw Hardening Audit** ($30) - Full security posture review for OpenClaw builders
+- **SARA Plus Touchless Seller Orchestration** - Seller-side AT&T SARA Plus checklist, secure-link handoff, and pending-order tracking. The customer still enters SSN, DOB, payment, and ID auth on their own device.
 - **Ailephant AI Roadmap** - Practical AI workflow roadmaps for founders and teams
 - **DevOps Consulting** - Infrastructure reviews, CI/CD pipeline analysis, cloud architecture guidance
 - **Code Review** - Automated code quality and security analysis with detailed feedback

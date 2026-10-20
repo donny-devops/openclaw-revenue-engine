@@ -45,6 +45,52 @@ paths:
           description: Checkout session created
         "400":
           description: Invalid payload
+  /revenue/sara-plus/workflow:
+    get:
+      summary: Seller-side SARA Plus touchless checklist and compliance limits
+      responses:
+        "200":
+          description: Workflow steps
+  /revenue/sara-plus/review-action:
+    post:
+      summary: Classify a SARA Plus action as allowed seller work or blocked customer-secure entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                step:
+                  type: string
+                text:
+                  type: string
+      responses:
+        "200":
+          description: Compliance verdict
+  /revenue/sara-plus/handoff-draft:
+    post:
+      summary: Draft customer copy that accompanies the official SARA Plus secure link
+      responses:
+        "200":
+          description: Message draft without the secure URL
+  /revenue/sara-plus/orders:
+    get:
+      summary: List tracked SARA Plus seller orders
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Order list or stale follow-up reminders
+    post:
+      summary: Track a SARA Plus order waiting on seller, customer, or ID auth
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Order created
+        "403":
+          description: Compliance blocked sensitive input
   /revenue/earnings:
     get:
       summary: Operator earnings snapshot

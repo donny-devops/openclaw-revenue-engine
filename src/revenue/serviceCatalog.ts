@@ -1,4 +1,5 @@
 import { assignAgents } from '../agents/orchestrator';
+import { redactCustomerPii, reviewSellerAction } from '../saraPlus';
 import { loadLaneCatalog, loadOpenClawConfig, loadServiceCatalog, loadTemplate } from './config';
 import { ClassifiedPaidRequest, LaneConfig, PaidRequestInput, RevenueSummary, ServiceConfig } from './types';
 
@@ -86,6 +87,10 @@ export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequ
     `service:${service.slug}`,
   ];
   const agentPlan = assignAgents(service.slug);
+  const compliance = reviewSellerAction({ text: `${input.title ?? ''}\n${input.body}` });
+  if (!compliance.allowed) {
+    labels.push('compliance:blocked-sensitive-entry');
+  }
 
   return {
     lane,
@@ -96,9 +101,13 @@ export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequ
     human_review_required: lane.human_review_required || openclaw.guardrails.require_human_review,
     deliverable_template: loadTemplate(service.deliverable_template),
     requested_at: new Date().toISOString(),
-    input_summary: summarizeInput(input),
+    input_summary: redactCustomerPii(summarizeInput(input)),
     assigned_agent: agentPlan.primary,
     agent_plan: agentPlan,
+    compliance: {
+      allowed: compliance.allowed,
+      violations: compliance.violations,
+    },
   };
 };
 
