@@ -156,3 +156,37 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local agent / IDE tooling and starter templates
+.claude/
+.cursor/
+starters/
+
+# === Boost OS (managed by boostmyagent CLI) ===
+/.agents/skills/.boostmyagent-install.json
+/.agents/memory/
+/.agents/references/
+/.agents/hooks/
+/.agents/skills/audit/
+/.agents/skills/cost/
+/.agents/skills/design/
+/.agents/skills/explain/
+/.agents/skills/forget/
+/.agents/skills/health/
+/.agents/skills/mobile/
+/.agents/skills/new/
+/.agents/skills/next/
+/.agents/skills/os/
+/.agents/skills/pause/
+/.agents/skills/preflight/
+/.agents/skills/recall/
+/.agents/skills/remember/
+/.agents/skills/resume/
+/.agents/skills/security/
+/.agents/skills/spawn/
+/.agents/skills/sync/
+/.agents/skills/uninstall/
+/.agents/skills/update/
+/.agents/skills/vibe/
+/.agents/skills/whats-new/
+# === End Boost OS ===
