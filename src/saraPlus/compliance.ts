@@ -1,4 +1,4 @@
-import { redactSecrets } from '../security/redact';
+import { CUSTOMER_PII_RULES, redactCustomerPiiFormats, redactSecrets } from '../security/redact';
 import { getStep, listAllowedAgentSteps, WorkflowStep } from './workflow';
 
 export interface ActionReviewInput {
@@ -14,12 +14,6 @@ export interface ActionVerdict {
   redacted_input: string;
   next_allowed_steps: string[];
 }
-
-const RAW_PII_RULES: Array<{ code: string; pattern: RegExp }> = [
-  { code: 'CUSTOMER_SSN', pattern: /\b\d{3}-\d{2}-\d{4}\b/g },
-  { code: 'CUSTOMER_DOB', pattern: /\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b/g },
-  { code: 'CUSTOMER_PAYMENT', pattern: /\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b/g },
-];
 
 const FORBIDDEN_INSTRUCTION_RULES: Array<{ code: string; pattern: RegExp }> = [
   { code: 'CUSTOMER_SSN', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste|key\s*in)\b[\s\w']{0,40}\b(?:ssn|social\s+security)\b/i },
@@ -42,12 +36,12 @@ const surroundingWindow = (text: string, index: number, length: number): string 
 
 export const redactCustomerPii = (value: string): string => {
   const withoutSecrets = redactSecrets(value);
-  return RAW_PII_RULES.reduce((acc, rule) => acc.replace(rule.pattern, '[REDACTED]'), withoutSecrets);
+  return redactCustomerPiiFormats(withoutSecrets);
 };
 
 export const scanRawPii = (text: string): string[] => {
   return unique(
-    RAW_PII_RULES.filter((rule) => {
+    CUSTOMER_PII_RULES.filter((rule) => {
       rule.pattern.lastIndex = 0;
       return rule.pattern.test(text);
     }).map((rule) => rule.code),
