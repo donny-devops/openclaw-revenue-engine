@@ -13,6 +13,7 @@ import {
   updateSaraPlusOrder,
 } from '../../src/saraPlus';
 import { assignAgents } from '../../src/agents/orchestrator';
+import { redactSecrets } from '../../src/security/redact';
 import { operatorAuthHeaders } from '../helpers/operatorAuth';
 
 beforeAll(() => {
@@ -103,6 +104,7 @@ describe('SARA Plus compliance gate', () => {
     expect(verdict.violations).toContain(violation);
     expect(verdict.redacted_input).not.toContain(sensitiveValue);
     expect(classification.input_summary).not.toContain(sensitiveValue);
+    expect(redactSecrets(value)).not.toContain(sensitiveValue);
     expect(() => createSaraPlusOrder({ notes: value })).toThrow(/compliance blocked notes/);
   });
 
@@ -156,6 +158,7 @@ describe('SARA Plus orders and handoff copy', () => {
       .toThrow(/compliance blocked last_step/);
 
     const order = createSaraPlusOrder({ order_ref: 'TX-1001', last_step: 'seller_login' });
+    expect(createSaraPlusOrder({ order_ref: 'ORDER-123456789' }).order_ref).toBe('ORDER-123456789');
     expect(() => updateSaraPlusOrder(order.id, { order_ref: '123-45-6789' }))
       .toThrow(/compliance blocked order_ref/);
     expect(() => updateSaraPlusOrder(order.id, { last_step: '123-45-6789' }))

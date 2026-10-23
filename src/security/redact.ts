@@ -44,5 +44,6 @@ export function redactCustomerPiiFormats(value: string): string {
 }
 
 export function redactSecrets(value: string): string {
-  return SECRET_PATTERNS.reduce((acc, pattern) => acc.replace(pattern, '[REDACTED]'), value);
+  const withoutSecrets = SECRET_PATTERNS.reduce((acc, pattern) => acc.replace(pattern, '[REDACTED]'), value);
+  return redactCustomerPiiFormats(withoutSecrets);
 }
