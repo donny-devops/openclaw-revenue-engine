@@ -26,7 +26,7 @@
     "express": "^4.22.3",
     "express-rate-limit": "^8.5.2",
     "helmet": "^7.1.0",
-    "ioredis": "^5.4.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.12.1",
     "pg": "^8.12.0",
