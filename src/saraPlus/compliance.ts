@@ -25,9 +25,9 @@ const FORBIDDEN_INSTRUCTION_RULES: Array<{ code: string; pattern: RegExp }> = [
   { code: 'CUSTOMER_SSN', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste|key\s*in)\b[\s\w']{0,40}\b(?:ssn|social\s+security)\b/i },
   { code: 'CUSTOMER_DOB', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste)\b[\s\w']{0,40}\b(?:dob|date\s+of\s+birth)\b/i },
   { code: 'CUSTOMER_DL', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste)\b[\s\w']{0,40}\b(?:driver'?s?\s+license|dl\s*(?:number|#|no\.?))\b/i },
-  { code: 'CUSTOMER_PIN', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste)\b[\s\w']{0,40}\b(?:debit\s+pin|pin\s+(?:code|number)|account\s+pin)\b/i },
+  { code: 'CUSTOMER_PIN', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|paste)\b[\s\w']{0,40}\bpin\b/i },
   { code: 'CUSTOMER_PAYMENT', pattern: /\b(?:enter|type|fill(?:\s+in)?|collect|submit|take)\b[\s\w']{0,40}\b(?:credit\s+card|card\s+number|cvv|payment\s+details|routing\s+number|bank\s+account)\b/i },
-  { code: 'ID_AUTH_BYPASS', pattern: /\b(?:complete|do|perform|finish)\s+id\s+auth(?:entication)?\s+for\b|\b(?:bypass|skip|workaround|avoid)\s+id\s+auth/i },
+  { code: 'ID_AUTH_BYPASS', pattern: /\b(?:complete|do|perform|finish)\s+id\s+auth(?:entication)?\s+(?:for|on\s+behalf\s+of)\b|\b(?:bypass|skip|workaround|avoid)\s+id\s+auth/i },
   { code: 'LOCATION_BYPASS', pattern: /\b(?:bypass|spoof|fake|disable)\b[\s\w']{0,30}\b(?:location|proximity|gps)\b/i },
   { code: 'CUSTOMER_SECURE_ENTRY', pattern: /\b(?:hands-?off|end-to-end|fully\s+automatic)\b[\s\w']{0,40}\b(?:order|sale|checkout)\b/i },
 ];
