@@ -42,5 +42,11 @@ describe('package manifests security regression', () => {
     qsVersions.forEach((version) => {
       expectVersionAtLeast(version, '6.16.0');
     });
+
+    const proxyAddrVersions = packageVersionsFor('proxy-addr');
+    expect(proxyAddrVersions.length).toBeGreaterThan(0);
+    proxyAddrVersions.forEach((version) => {
+      expectVersionAtLeast(version, '2.0.8');
+    });
   });
 });
