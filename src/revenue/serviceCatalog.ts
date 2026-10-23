@@ -101,7 +101,9 @@ export const classifyPaidRequest = (input: PaidRequestInput): ClassifiedPaidRequ
     human_review_required: lane.human_review_required || openclaw.guardrails.require_human_review,
     deliverable_template: loadTemplate(service.deliverable_template),
     requested_at: new Date().toISOString(),
-    input_summary: redactCustomerPii(summarizeInput(input)),
+    input_summary: summarizeInput({
+      body: redactCustomerPii(`${input.title ?? ''} ${input.body}`.replace(/\s+/g, ' ').trim()),
+    }),
     assigned_agent: agentPlan.primary,
     agent_plan: agentPlan,
     compliance: {
