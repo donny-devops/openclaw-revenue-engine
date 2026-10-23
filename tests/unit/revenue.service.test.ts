@@ -17,7 +17,7 @@ describe('revenue service catalog', () => {
   it('loads service catalog defaults', () => {
     const services = listRevenueServices();
     expect(services.map((service) => service.slug)).toEqual(
-      expect.arrayContaining(['repo-triage', 'actions-debug', 'devsecops-hardening', 'openclaw-setup', 'ai-roadmap']),
+      expect.arrayContaining(['repo-triage', 'actions-debug', 'devsecops-hardening', 'openclaw-setup', 'ai-roadmap', 'sara-plus-touchless']),
     );
   });
 
@@ -26,7 +26,7 @@ describe('revenue service catalog', () => {
     expect(summary).toMatchObject({
       currency: 'USD',
       enabled_lanes: 3,
-      enabled_services: 5,
+      enabled_services: 6,
       default_lane: 'detailed-request',
       default_service: 'repo-triage',
     });

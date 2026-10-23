@@ -16,7 +16,7 @@ describe('revenue routes', () => {
     expect(res.body.summary).toMatchObject({
       currency: 'USD',
       enabled_lanes: 3,
-      enabled_services: 5,
+      enabled_services: 6,
       default_lane: 'detailed-request',
     });
   });

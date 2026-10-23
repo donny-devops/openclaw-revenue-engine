@@ -12,6 +12,7 @@ import {
   listRevenueLanes,
   listRevenueServices,
 } from '../revenue/serviceCatalog';
+import { saraPlusRouter } from './saraPlus';
 
 const paidRequestSchema = z.object({
   title: z.string().optional(),
@@ -29,6 +30,7 @@ const checkoutSchema = paidRequestSchema.extend({
 });
 
 const revenueRouter = Router();
+revenueRouter.use('/sara-plus', saraPlusRouter);
 
 const isInputError = (message: string): boolean => {
   return (

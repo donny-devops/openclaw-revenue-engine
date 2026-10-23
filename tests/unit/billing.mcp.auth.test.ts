@@ -15,6 +15,7 @@ import {
 import { createLaneCheckout, simulatePaymentCollection } from '../../src/billing/checkout';
 import { getUsageSummary, recordUsageEvent, resetUsageMeter } from '../../src/billing/usageMeter';
 import { handleMcpRequest, listMcpTools } from '../../src/mcp/server';
+import { redactCustomerPii, scanRawPii } from '../../src/saraPlus';
 import { mockResponse } from '../helpers/fixtures';
 
 describe('secret redaction', () => {
@@ -22,6 +23,31 @@ describe('secret redaction', () => {
     const raw = 'sk_test_abc123 whsec_hello Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.a.b';
     expect(redactSecrets(raw)).not.toContain('sk_test_abc123');
     expect(redactSecrets(raw)).toContain('[REDACTED]');
+  });
+
+  it('detects and redacts contextual SSNs, birth dates, and card lengths without redacting order references', () => {
+    const raw = [
+      'SSN: 123456789',
+      'DOB: 1990-01-02',
+      'card: 378282246310005',
+      ...Array.from({ length: 7 }, (_, index) => `card: ${'4'.repeat(index + 13)}`),
+      'order: 123456789 1990-01-02 123456789012345',
+    ].join('; ');
+
+    const piiRedacted = redactCustomerPii(raw);
+
+    expect(scanRawPii(raw)).toEqual(expect.arrayContaining([
+      'CUSTOMER_SSN',
+      'CUSTOMER_DOB',
+      'CUSTOMER_PAYMENT',
+    ]));
+    expect(piiRedacted).not.toContain('SSN: 123456789');
+    expect(piiRedacted).toContain('DOB: [REDACTED]');
+    expect(piiRedacted).not.toContain('378282246310005');
+    for (let length = 13; length <= 19; length += 1) {
+      expect(piiRedacted).not.toContain('4'.repeat(length));
+    }
+    expect(piiRedacted).toContain('order: 123456789 1990-01-02 123456789012345');
   });
 });
 
