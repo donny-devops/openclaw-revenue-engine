@@ -78,35 +78,23 @@ revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
     return;
   }
   res.json({ payment });
+});
+
 // Simulation endpoint exists only outside production. Declaring it
 // conditionally means it never binds in prod: no route-table entry, no
 // auth spend, no 403 that advertises the endpoint's existence.
 if (process.env.NODE_ENV !== 'production') {
-  revenueRouter.post(
-    '/payments/:id/collect',
-    /* requireOperator — see note below */ (req: Request, res: Response) => {
-      try {
-        const payment = simulatePaymentCollection(req.params.id);
-        res.json({ payment });
-      } catch (err) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === 'PAYMENT_NOT_FOUND') {
-          res.status(404).json({ error: 'Unknown payment' });
-          return;
-        }
-        logger.error('Simulated collection failed', {
-          paymentId: req.params.id,
-          err: err instanceof Error ? err.message : String(err),
-        });
-        res.status(400).json({ error: 'Collection failed' });
-      }
-    },
-  );
+  revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
+    try {
+      const payment = simulatePaymentCollection(req.params.id);
+      res.json({ payment });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown collection error';
+      const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
+      res.status(status).json({ error: message });
+    }
+  });
 }
-    const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
-    res.status(status).json({ error: message });
-  }
-});
 
 revenueRouter.post('/classify', (req: Request, res: Response) => {
   const parsed = paidRequestSchema.safeParse(req.body);
