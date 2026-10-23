@@ -110,7 +110,9 @@ describe('live Stripe checkout and error branches', () => {
   });
 
   it('returns 404 for unknown payments and 400 for invalid usage', async () => {
-    const missing = await request(app).get('/revenue/payments/pay_missing');
+    const missing = await request(app)
+      .get('/revenue/payments/pay_missing')
+      .set(operatorAuthHeaders());
     expect(missing.status).toBe(404);
 
     const collect = await request(app)

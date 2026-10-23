@@ -63,60 +63,6 @@ revenueRouter.get('/openclaw', (_req: Request, res: Response) => {
   res.json({ openclaw: loadOpenClawConfig() });
 });
 
-revenueRouter.get('/earnings', requireOperatorAuth, (_req: Request, res: Response) => {
-  res.json({ earnings: getEarningsSnapshot() });
-});
-
-revenueRouter.get('/payments', requireOperatorAuth, (_req: Request, res: Response) => {
-  res.json({ payments: listPayments() });
-});
-
-revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
-  const payment = getPayment(req.params.id);
-  if (!payment) {
-    res.status(404).json({ error: 'Payment not found' });
-    return;
-  }
-  res.json({ payment });
-// Simulation endpoint exists only outside production. Declaring it
-// conditionally means it never binds in prod: no route-table entry, no
-// auth spend, no 403 that advertises the endpoint's existence.
-if (process.env.NODE_ENV !== 'production') {
- // Simulation-only endpoint: never binds in production. Registered
-// conditionally at module load so it cannot be reached, enumerated in the
-// route table, or answered in a live environment.
-if (process.env.NODE_ENV !== 'production') {
-  revenueRouter.post(
-    '/payments/:id/collect',
-    // If auth is applied via a revenueRouter.use(...) above this point, drop
-    // this argument. If it is not, add the real middleware name here.
-    (req: Request, res: Response) => {
-      try {
-        const payment = simulatePaymentCollection(req.params.id);
-        res.json({ payment });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown collection error';
-        // 404 only for genuinely unknown payments; everything else is a bad request.
-        const status = message.startsWith('Unknown') ? 404 : 400;
-        res.status(status).json({ error: message });
-      }
-    },
-  );
-}
-        logger.error('Simulated collection failed', {
-          paymentId: req.params.id,
-          err: err instanceof Error ? err.message : String(err),
-        });
-        res.status(400).json({ error: 'Collection failed' });
-      }
-    },
-  );
-}
-    const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
-    res.status(status).json({ error: message });
-  }
-});
-
 revenueRouter.post('/classify', (req: Request, res: Response) => {
   const parsed = paidRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -149,5 +95,37 @@ revenueRouter.post('/checkout', async (req: Request, res: Response) => {
     res.status(status).json({ error: status === 400 ? message : 'Checkout provider error' });
   }
 });
+
+revenueRouter.use(requireOperatorAuth);
+
+revenueRouter.get('/earnings', (_req: Request, res: Response) => {
+  res.json({ earnings: getEarningsSnapshot() });
+});
+
+revenueRouter.get('/payments', (_req: Request, res: Response) => {
+  res.json({ payments: listPayments() });
+});
+
+revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
+  const payment = getPayment(req.params.id);
+  if (!payment) {
+    res.status(404).json({ error: 'Payment not found' });
+    return;
+  }
+  res.json({ payment });
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
+    try {
+      const payment = simulatePaymentCollection(req.params.id);
+      res.json({ payment });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown collection error';
+      const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
+      res.status(status).json({ error: message });
+    }
+  });
+}
 
 export { revenueRouter };

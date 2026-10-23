@@ -34,6 +34,7 @@ describe('money collection routes', () => {
 
     const collected = await request(app)
       .post(`/revenue/payments/${checkout.body.payment.id}/collect`)
+      .set(operatorAuthHeaders())
       .send();
     expect(collected.status).toBe(200);
     expect(collected.body.payment.status).toBe('paid');
