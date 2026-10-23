@@ -109,6 +109,7 @@ describe('SARA Plus compliance gate', () => {
   });
 
   it.each([
+    'Bypass ID auth while the customer uses their own device.',
     'The customer will enter their own DOB. Bypass ID auth.',
     'Do not wait and enter the customer SSN.',
   ])('does not let unrelated framing exempt a forbidden action: %s', (text) => {
