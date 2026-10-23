@@ -61,34 +61,6 @@ revenueRouter.get('/openclaw', (_req: Request, res: Response) => {
   res.json({ openclaw: loadOpenClawConfig() });
 });
 
-revenueRouter.get('/earnings', requireOperatorAuth, (_req: Request, res: Response) => {
-  res.json({ earnings: getEarningsSnapshot() });
-});
-
-revenueRouter.get('/payments', requireOperatorAuth, (_req: Request, res: Response) => {
-  res.json({ payments: listPayments() });
-});
-
-revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
-  const payment = getPayment(req.params.id);
-  if (!payment) {
-    res.status(404).json({ error: 'Payment not found' });
-    return;
-  }
-  res.json({ payment });
-});
-
-revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
-  try {
-    const payment = simulatePaymentCollection(req.params.id);
-    res.json({ payment });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown collection error';
-    const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
-    res.status(status).json({ error: message });
-  }
-});
-
 revenueRouter.post('/classify', (req: Request, res: Response) => {
   const parsed = paidRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -121,5 +93,37 @@ revenueRouter.post('/checkout', async (req: Request, res: Response) => {
     res.status(status).json({ error: status === 400 ? message : 'Checkout provider error' });
   }
 });
+
+revenueRouter.use(requireOperatorAuth);
+
+revenueRouter.get('/earnings', (_req: Request, res: Response) => {
+  res.json({ earnings: getEarningsSnapshot() });
+});
+
+revenueRouter.get('/payments', (_req: Request, res: Response) => {
+  res.json({ payments: listPayments() });
+});
+
+revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
+  const payment = getPayment(req.params.id);
+  if (!payment) {
+    res.status(404).json({ error: 'Payment not found' });
+    return;
+  }
+  res.json({ payment });
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
+    try {
+      const payment = simulatePaymentCollection(req.params.id);
+      res.json({ payment });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown collection error';
+      const status = message.includes('production') ? 403 : message.includes('Unknown') ? 404 : 400;
+      res.status(status).json({ error: message });
+    }
+  });
+}
 
 export { revenueRouter };
