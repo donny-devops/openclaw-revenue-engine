@@ -48,5 +48,11 @@ describe('package manifests security regression', () => {
     proxyAddrVersions.forEach((version) => {
       expectVersionAtLeast(version, '2.0.8');
     });
+
+    const ipAddressVersions = packageVersionsFor('ip-address');
+    expect(ipAddressVersions.length).toBeGreaterThan(0);
+    ipAddressVersions.forEach((version) => {
+      expectVersionAtLeast(version, '10.7.4');
+    });
   });
 });
