@@ -54,6 +54,8 @@ paths:
   /revenue/sara-plus/review-action:
     post:
       summary: Classify a SARA Plus action as allowed seller work or blocked customer-secure entry
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
