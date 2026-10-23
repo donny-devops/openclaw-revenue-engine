@@ -139,6 +139,16 @@ describe('SARA Plus orders and handoff copy', () => {
     expect(draft.body).not.toMatch(/https?:\/\//);
     expect(draft.compliance_note).toContain('Do not ask the customer to send SSN');
   });
+
+  it.each([
+    ['customer_first_name', { customer_first_name: 'Jordan https://example.com/secure' }],
+    ['seller_name', { seller_name: 'Alex https://example.com/secure' }],
+  ])('rejects URL-bearing %s in HTTP handoff drafts', async (_field, names) => {
+    const response = await request(app).post('/revenue/sara-plus/handoff-draft').send(names);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Invalid SARA Plus');
+  });
 });
 
 describe('SARA Plus HTTP and MCP surfaces', () => {
@@ -281,5 +291,18 @@ describe('SARA Plus HTTP and MCP surfaces', () => {
       params: { name: 'sara_plus_draft_handoff', arguments: { channel: 'telegram', customer_first_name: 'Jordan' } },
     });
     expect(draft.error).toBeUndefined();
+  });
+
+  it.each([
+    ['customer_first_name', { customer_first_name: 'Jordan https://example.com/secure' }],
+    ['seller_name', { seller_name: 'Alex https://example.com/secure' }],
+  ])('rejects URL-bearing %s in MCP handoff drafts', async (_field, names) => {
+    const response = await handleMcpRequest({
+      method: 'tools/call',
+      id: 9,
+      params: { name: 'sara_plus_draft_handoff', arguments: names },
+    });
+
+    expect(response.error?.message).toContain('Invalid SARA Plus');
   });
 });

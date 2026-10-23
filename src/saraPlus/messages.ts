@@ -24,9 +24,21 @@ export interface HandoffDraft {
 const DEFAULT_COMPLIANCE_NOTE =
   'The actual secure link comes from SARA Plus. Do not ask the customer to send SSN, DOB, PIN, driver license, or payment details to the seller or agent.';
 
+const NAME_TOKEN = String.raw`\p{L}[\p{L}\p{M}]*(?:[-'’]\p{L}[\p{L}\p{M}]*)*\.?`;
+const NAME_PATTERN = new RegExp(String.raw`^${NAME_TOKEN}(?: ${NAME_TOKEN}){0,4}$`, 'u');
+
+const validateName = (value: string | undefined, field: string): string | undefined => {
+  const name = value?.trim();
+  if (!name) return undefined;
+  if (name.length > 80 || !NAME_PATTERN.test(name)) {
+    throw new Error(`Invalid SARA Plus ${field}: expected a name of up to 80 characters.`);
+  }
+  return name;
+};
+
 export const draftHandoffMessage = (input: HandoffDraftInput = {}): HandoffDraft => {
-  const greeting = input.customer_first_name?.trim() || 'there';
-  const seller = input.seller_name?.trim();
+  const greeting = validateName(input.customer_first_name, 'customer_first_name') || 'there';
+  const seller = validateName(input.seller_name, 'seller_name');
   const channel = input.channel ?? 'sms';
   const identity = seller ? ` — ${seller}` : '';
 
