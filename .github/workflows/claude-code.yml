@@ -36,7 +36,7 @@ on :
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
- permissions:
+permissions:
   id-token: write       # Required for Claude Code OIDC authentication
   contents: write       # Needed to push code / open tuning branches
   pull-requests: write  # Needed to comment on and open PRs
@@ -115,6 +115,10 @@ jobs:
   weekly-prompt-self-tune:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
     timeout-minutes: 20
     steps:
       - name: Check out main
