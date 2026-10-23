@@ -65,9 +65,9 @@ export const createSaraPlusOrder = (input: CreateSaraPlusOrderInput = {}): SaraP
   const order: SaraPlusOrder = {
     id: newId('sara'),
     customer_display_name: assertCompliantText(input.customer_display_name, 'customer_display_name') || undefined,
-    order_ref: input.order_ref?.trim() || undefined,
+    order_ref: assertCompliantText(input.order_ref, 'order_ref').trim() || undefined,
     status: input.status ?? 'seller_prep',
-    last_step: input.last_step ?? 'seller_login',
+    last_step: assertCompliantText(input.last_step ?? 'seller_login', 'last_step'),
     waiting_on: input.waiting_on ?? 'seller',
     notes: assertCompliantText(input.notes, 'notes'),
     created_at: timestamp,
@@ -96,9 +96,13 @@ export const updateSaraPlusOrder = (id: string, input: UpdateSaraPlusOrderInput)
     customer_display_name: input.customer_display_name !== undefined
       ? assertCompliantText(input.customer_display_name, 'customer_display_name') || undefined
       : existing.customer_display_name,
-    order_ref: input.order_ref !== undefined ? input.order_ref.trim() || undefined : existing.order_ref,
+    order_ref: input.order_ref !== undefined
+      ? assertCompliantText(input.order_ref, 'order_ref').trim() || undefined
+      : existing.order_ref,
     status: input.status ?? existing.status,
-    last_step: input.last_step ?? existing.last_step,
+    last_step: input.last_step !== undefined
+      ? assertCompliantText(input.last_step, 'last_step')
+      : existing.last_step,
     waiting_on: input.waiting_on ?? existing.waiting_on,
     notes: input.notes !== undefined ? assertCompliantText(input.notes, 'notes') : existing.notes,
     updated_at: nowIso(),

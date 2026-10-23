@@ -111,6 +111,22 @@ describe('SARA Plus orders and handoff copy', () => {
     })).toThrow(/compliance blocked notes/);
   });
 
+  it('blocks sensitive data in order references and steps on create and update', () => {
+    expect(() => createSaraPlusOrder({ order_ref: '123-45-6789' }))
+      .toThrow(/compliance blocked order_ref/);
+    expect(() => createSaraPlusOrder({ last_step: '123-45-6789' }))
+      .toThrow(/compliance blocked last_step/);
+
+    const order = createSaraPlusOrder({ order_ref: 'TX-1001', last_step: 'seller_login' });
+    expect(() => updateSaraPlusOrder(order.id, { order_ref: '123-45-6789' }))
+      .toThrow(/compliance blocked order_ref/);
+    expect(() => updateSaraPlusOrder(order.id, { last_step: '123-45-6789' }))
+      .toThrow(/compliance blocked last_step/);
+
+    expect(updateSaraPlusOrder(order.id, {}).order_ref).toBe('TX-1001');
+    expect(updateSaraPlusOrder(order.id, {}).last_step).toBe('seller_login');
+  });
+
   it('drafts a customer message that does not carry the secure link or collect secrets', () => {
     const draft = draftHandoffMessage({
       channel: 'sms',
