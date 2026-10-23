@@ -93,6 +93,7 @@ This document tracks the planned development milestones for `openclaw-revenue-en
 
 ## Notes
 
+- SARA Plus touchless seller orchestration is available as a compliance-gated service and OpenClaw/Hermes skill. It does not automate customer-secure entry.
 - Milestones are subject to change as requirements evolve.
 - Each milestone will be tracked via GitHub Issues and linked PRs.
 - Security and test coverage requirements apply to all new features.

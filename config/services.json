@@ -50,6 +50,30 @@
       "deliverable_template": "services/ai-roadmap.md",
       "outputs": ["agent_design", "repo_structure", "milestones", "risk_controls"],
       "enabled": true
+    },
+    {
+      "slug": "sara-plus-touchless",
+      "name": "SARA Plus Touchless Seller Orchestration",
+      "description": "Seller-side SARA Plus touchless checklist, secure-link handoff, and pending-order tracking. Never enters customer SSN, DOB, payment, or ID auth.",
+      "recommended_lane": "real-offer",
+      "keywords": [
+        "sara plus",
+        "sara-plus",
+        "touchless",
+        "secure link",
+        "at&t mobile",
+        "id authentication",
+        "seller orchestration"
+      ],
+      "deliverable_template": "services/sara-plus-touchless.md",
+      "outputs": [
+        "seller_checklist",
+        "secure_link_handoff",
+        "customer_message_draft",
+        "pending_order_tracker",
+        "compliance_limits"
+      ],
+      "enabled": true
     }
   ]
 }

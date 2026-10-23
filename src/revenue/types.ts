@@ -87,6 +87,10 @@ export interface ClassifiedPaidRequest {
   input_summary: string;
   assigned_agent?: AgentAssignment;
   agent_plan?: AgentPlan;
+  compliance?: {
+    allowed: boolean;
+    violations: string[];
+  };
 }
 
 export interface RevenueSummary {

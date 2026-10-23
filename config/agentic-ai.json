@@ -109,6 +109,23 @@
       "mcp_tools": ["files.read", "postgres.query_readonly", "pgvector.search", "issues.create"],
       "human_review_required": true,
       "enabled": true
+    },
+    {
+      "slug": "sara-plus-seller-agent",
+      "name": "SARA Plus Seller Orchestrator",
+      "type": "orchestration",
+      "purpose": "Drive seller-side SARA Plus touchless steps, draft secure-link handoff copy, and track orders waiting on the customer. Never enter SSN, DOB, payment, or complete ID auth.",
+      "inputs": ["seller_request", "nonsensitive_profile", "order_status"],
+      "outputs": ["seller_checklist", "handoff_draft", "pending_order", "compliance_verdict"],
+      "mcp_servers": ["filesystem-mcp-server", "revenue-engine-mcp-server"],
+      "mcp_tools": [
+        "sara_plus_workflow",
+        "sara_plus_review_action",
+        "sara_plus_orders",
+        "sara_plus_draft_handoff"
+      ],
+      "human_review_required": true,
+      "enabled": true
     }
   ]
 }

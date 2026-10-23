@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- SARA Plus touchless seller-side skill, service, compliance gate, order tracker, and MCP/HTTP tools. Agent work stays on non-sensitive seller steps; customer SSN/DOB/payment/ID auth stay on the official secure link.
 - Stripe Checkout money collection for paid lanes (`POST /revenue/checkout`) with a payment ledger, earnings snapshot, and local simulated collection for test/dev
 - Usage metering API (`POST /usage/events`, `GET /usage/summary`) with idempotent event recording
 - Operator auth middleware (API key or JWT) for earnings, payments, usage, and MCP mutating calls

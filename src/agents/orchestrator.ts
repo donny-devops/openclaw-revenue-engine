@@ -42,6 +42,7 @@ const SERVICE_AGENT_MAP: Record<string, string> = {
   'devsecops-hardening': 'compliance-quality-agent',
   'openclaw-setup': 'config-agent',
   'ai-roadmap': 'revenue-intake-orchestrator',
+  'sara-plus-touchless': 'sara-plus-seller-agent',
 };
 
 let catalogCache: AgentCatalog | undefined;

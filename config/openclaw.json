@@ -22,6 +22,9 @@
     "block_secret_echo": true,
     "block_payment_execution": true,
     "block_customer_record_mutation": true,
+    "block_customer_sensitive_entry": true,
+    "block_id_authentication_bypass": true,
+    "allow_seller_nonsensitive_orchestration": true,
     "allow_issue_creation": true,
     "allow_pull_request_creation": false
   },
