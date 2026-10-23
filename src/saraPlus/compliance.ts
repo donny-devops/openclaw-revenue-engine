@@ -26,13 +26,46 @@ const FORBIDDEN_INSTRUCTION_RULES: Array<{ code: string; pattern: RegExp }> = [
   { code: 'CUSTOMER_SECURE_ENTRY', pattern: /\b(?:hands-?off|end-to-end|fully\s+automatic)\b[\s\w']{0,40}\b(?:order|sale|checkout)\b/i },
 ];
 
-const NEGATION_PREFIX = /(?:never|do not|don't|do\s+not|cannot|can't|must not|do not try to)\b[\s\w']*$/i;
-const CUSTOMER_SELF_ENTRY = /\b(?:their own|on their (?:own )?device|customer (?:must |will )?(?:consent and )?enter)\b/i;
+const NEGATED_ACTION_PREFIX = /\b(?:never|do not|don't|cannot|can't|must not)(?:\s+(?:ever|try to))?\s*$/i;
+const CUSTOMER_SELF_ENTRY_TARGETS: Record<string, string> = {
+  CUSTOMER_SSN: String.raw`(?:ssn|social\s+security(?:\s+(?:number|no\.?))?)`,
+  CUSTOMER_DOB: String.raw`(?:dob|date\s+of\s+birth)`,
+  CUSTOMER_DL: String.raw`(?:driver'?s?\s+license|dl\s*(?:number|#|no\.?))`,
+  CUSTOMER_PIN: String.raw`pin`,
+  CUSTOMER_PAYMENT: String.raw`(?:credit\s+card|card\s+number|cvv|payment\s+details|routing\s+number|bank\s+account)`,
+};
 
 const unique = (values: string[]): string[] => Array.from(new Set(values));
 
-const surroundingWindow = (text: string, index: number, length: number): string =>
-  text.slice(Math.max(0, index - 48), index + length + 48);
+const clauseBounds = (text: string, index: number): [number, number] => {
+  const before = text.slice(0, index);
+  const clauseStart = Math.max(
+    before.lastIndexOf('.'),
+    before.lastIndexOf('!'),
+    before.lastIndexOf('?'),
+    before.lastIndexOf(';'),
+    before.lastIndexOf('\n'),
+  ) + 1;
+  const after = text.slice(index);
+  const clauseEndOffset = after.search(/[.!?;\n]/);
+  return [clauseStart, clauseEndOffset < 0 ? text.length : index + clauseEndOffset];
+};
+
+const isCustomerSelfEntry = (text: string, match: RegExpExecArray, code: string): boolean => {
+  const target = CUSTOMER_SELF_ENTRY_TARGETS[code];
+  if (!target) return false;
+
+  const [start, end] = clauseBounds(text, match.index);
+  const clause = text.slice(start, end);
+  const customerEntry = new RegExp(
+    String.raw`\bcustomer\b[^.!?;\n]{0,40}\b(enter|type|fill(?:\s+in)?|submit|paste|key\s*in)\b[^.!?;\n]{0,35}\btheir own\b[^.!?;\n]{0,20}\b${target}\b`,
+    'i',
+  ).exec(clause);
+  if (!customerEntry) return false;
+
+  const actionOffset = customerEntry.index + customerEntry[0].indexOf(customerEntry[1]);
+  return actionOffset === match.index - start;
+};
 
 export const redactCustomerPii = (value: string): string => {
   const withoutSecrets = redactSecrets(value);
@@ -58,9 +91,10 @@ export const scanForbiddenInstructions = (text: string): string[] => {
     const matcher = new RegExp(rule.pattern.source, rule.pattern.flags.includes('g') ? rule.pattern.flags : `${rule.pattern.flags}g`);
     let match = matcher.exec(text);
     while (match) {
-      const prefix = text.slice(Math.max(0, match.index - 48), match.index);
-      const window = surroundingWindow(text, match.index, match[0].length);
-      const allowedFraming = NEGATION_PREFIX.test(prefix) || CUSTOMER_SELF_ENTRY.test(window);
+      const [clauseStart] = clauseBounds(text, match.index);
+      const prefix = text.slice(clauseStart, match.index);
+      const allowedFraming = NEGATED_ACTION_PREFIX.test(prefix)
+        || isCustomerSelfEntry(text, match, rule.code);
       if (!allowedFraming) {
         violations.push(rule.code);
         break;

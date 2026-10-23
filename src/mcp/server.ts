@@ -183,13 +183,20 @@ async function callTool(name: string, args: Record<string, unknown> = {}): Promi
       return { payments: listPayments() };
     case 'sara_plus_workflow':
       return { workflow: getWorkflow() };
-    case 'sara_plus_review_action':
+    case 'sara_plus_review_action': {
+      if (args.step !== undefined && typeof args.step !== 'string') {
+        throw new Error('step must be a string when provided');
+      }
+      if (args.text !== undefined && typeof args.text !== 'string') {
+        throw new Error('text must be a string when provided');
+      }
       return {
         verdict: reviewSellerAction({
           step: asString(args.step),
           text: asString(args.text),
         }),
       };
+    }
     case 'sara_plus_orders': {
       const action = asString(args.action) ?? 'list';
       if (action === 'create') {

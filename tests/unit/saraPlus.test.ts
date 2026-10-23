@@ -57,6 +57,15 @@ describe('SARA Plus touchless catalog', () => {
     expect(classification.compliance?.allowed).toBe(false);
     expect(classification.compliance?.violations).toEqual(expect.arrayContaining(['CUSTOMER_SSN']));
   });
+
+  it('redacts sensitive data before truncating classification summaries', () => {
+    const classification = classifyPaidRequest({
+      body: `${'x'.repeat(270)} SSN: 123456789`,
+    });
+
+    expect(classification.input_summary).not.toContain('123456789');
+    expect(classification.input_summary).not.toMatch(/\d{3}/);
+  });
 });
 
 describe('SARA Plus compliance gate', () => {
@@ -80,6 +89,35 @@ describe('SARA Plus compliance gate', () => {
     expect(reviewSellerAction({
       text: 'Do not enter the customer SSN. Trigger the official secure link instead.',
     }).allowed).toBe(true);
+  });
+
+  it.each([
+    ['SSN: 123456789', 'CUSTOMER_SSN', '123456789'],
+    ['DOB: 1990-01-31', 'CUSTOMER_DOB', '1990-01-31'],
+    ['Card: 378282246310005', 'CUSTOMER_PAYMENT', '378282246310005'],
+  ])('detects and redacts common format %s', (value, violation, sensitiveValue) => {
+    const verdict = reviewSellerAction({ text: value });
+    const classification = classifyPaidRequest({ body: `SARA Plus request ${value}` });
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.violations).toContain(violation);
+    expect(verdict.redacted_input).not.toContain(sensitiveValue);
+    expect(classification.input_summary).not.toContain(sensitiveValue);
+    expect(() => createSaraPlusOrder({ notes: value })).toThrow(/compliance blocked notes/);
+  });
+
+  it.each([
+    'The customer will enter their own DOB. Bypass ID auth.',
+    'Do not wait and enter the customer SSN.',
+  ])('does not let unrelated framing exempt a forbidden action: %s', (text) => {
+    expect(reviewSellerAction({ text }).allowed).toBe(false);
+  });
+
+  it.each([
+    'Enter the customer PIN.',
+    'Complete ID authentication on behalf of the customer.',
+  ])('blocks ordinary wording for a forbidden action: %s', (text) => {
+    expect(reviewSellerAction({ text }).allowed).toBe(false);
   });
 });
 
@@ -297,6 +335,42 @@ describe('SARA Plus HTTP and MCP surfaces', () => {
       params: { name: 'sara_plus_draft_handoff', arguments: { channel: 'telegram', customer_first_name: 'Jordan' } },
     });
     expect(draft.error).toBeUndefined();
+  });
+
+  it.each([
+    ['step', { step: 9 }],
+    ['text', { text: { action: 'enter_pin' } }],
+  ])('rejects non-string MCP review argument %s', async (_field, arguments_) => {
+    const response = await handleMcpRequest({
+      method: 'tools/call',
+      id: 10,
+      params: { name: 'sara_plus_review_action', arguments: arguments_ },
+    });
+
+    expect(response.error?.message).toContain(`${_field} must be a string`);
+  });
+
+  it.each([
+    'Enter the customer PIN.',
+    'Complete ID authentication on behalf of the customer.',
+    'The customer will enter their own DOB. Bypass ID auth.',
+    'Do not wait and enter the customer SSN.',
+  ])('blocks unsafe free-text reviews over HTTP and MCP: %s', async (text) => {
+    const http = await request(app)
+      .post('/revenue/sara-plus/review-action')
+      .set(operatorAuthHeaders())
+      .send({ text });
+    expect(http.status).toBe(200);
+    expect(http.body.verdict.allowed).toBe(false);
+
+    const mcp = await handleMcpRequest({
+      method: 'tools/call',
+      id: 11,
+      params: { name: 'sara_plus_review_action', arguments: { text } },
+    });
+    expect(mcp.result).toMatchObject({
+      structuredContent: { verdict: expect.objectContaining({ allowed: false }) },
+    });
   });
 
   it.each([
