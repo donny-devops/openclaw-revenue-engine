@@ -165,9 +165,12 @@ describe('SARA Plus HTTP and MCP surfaces', () => {
       expect.objectContaining({ slug: 'enter_payment', allowed_for_agent: false }),
     ]));
 
-    const review = await request(app).post('/revenue/sara-plus/review-action').send({
-      text: 'Complete ID auth for the customer so they do not have to.',
-    });
+    const review = await request(app)
+      .post('/revenue/sara-plus/review-action')
+      .set(operatorAuthHeaders())
+      .send({
+        text: 'Complete ID auth for the customer so they do not have to.',
+      });
     expect(review.status).toBe(200);
     expect(review.body.verdict.allowed).toBe(false);
 
@@ -211,7 +214,10 @@ describe('SARA Plus HTTP and MCP surfaces', () => {
       .send({ notes: 'Enter the customer SSN 123-45-6789' });
     expect(blocked.status).toBe(403);
 
-    const invalidReview = await request(app).post('/revenue/sara-plus/review-action').send({ step: 9 });
+    const invalidReview = await request(app)
+      .post('/revenue/sara-plus/review-action')
+      .set(operatorAuthHeaders())
+      .send({ step: 9 });
     expect(invalidReview.status).toBe(400);
     const invalidDraft = await request(app).post('/revenue/sara-plus/handoff-draft').send({ channel: 'carrier-pigeon' });
     expect(invalidDraft.status).toBe(400);
