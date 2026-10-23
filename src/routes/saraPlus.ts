@@ -57,7 +57,7 @@ saraPlusRouter.get('/workflow', (_req: Request, res: Response) => {
   });
 });
 
-saraPlusRouter.post('/review-action', (req: Request, res: Response) => {
+saraPlusRouter.post('/review-action', requireOperatorAuth, (req: Request, res: Response) => {
   const parsed = reviewSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid SARA Plus review payload', details: parsed.error.flatten() });
