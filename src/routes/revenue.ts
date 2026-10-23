@@ -82,18 +82,27 @@ revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
 // conditionally means it never binds in prod: no route-table entry, no
 // auth spend, no 403 that advertises the endpoint's existence.
 if (process.env.NODE_ENV !== 'production') {
+ // Simulation-only endpoint: never binds in production. Registered
+// conditionally at module load so it cannot be reached, enumerated in the
+// route table, or answered in a live environment.
+if (process.env.NODE_ENV !== 'production') {
   revenueRouter.post(
     '/payments/:id/collect',
-    /* requireOperator — see note below */ (req: Request, res: Response) => {
+    // If auth is applied via a revenueRouter.use(...) above this point, drop
+    // this argument. If it is not, add the real middleware name here.
+    (req: Request, res: Response) => {
       try {
         const payment = simulatePaymentCollection(req.params.id);
         res.json({ payment });
       } catch (err) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === 'PAYMENT_NOT_FOUND') {
-          res.status(404).json({ error: 'Unknown payment' });
-          return;
-        }
+        const message = err instanceof Error ? err.message : 'Unknown collection error';
+        // 404 only for genuinely unknown payments; everything else is a bad request.
+        const status = message.startsWith('Unknown') ? 404 : 400;
+        res.status(status).json({ error: message });
+      }
+    },
+  );
+}
         logger.error('Simulated collection failed', {
           paymentId: req.params.id,
           err: err instanceof Error ? err.message : String(err),
