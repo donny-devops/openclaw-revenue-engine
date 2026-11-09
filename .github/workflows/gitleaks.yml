@@ -29,8 +29,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Full-history scan. Keep .gitleaks.toml allowlist narrow (placeholders only).
-      # Policy: rotate any real secret; never allowlist a live credential.
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v3
         env:
