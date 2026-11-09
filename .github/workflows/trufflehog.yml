@@ -28,7 +28,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Fail the job on verified (live) secrets.
+      # Policy: rotate the credential; do not allowlist a real secret.
       - name: TruffleHog OSS
         uses: trufflesecurity/trufflehog@v3.97.9
         with:
-          extra_args: --results=verified,unknown
+          extra_args: --results=verified --fail
