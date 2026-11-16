@@ -19,6 +19,7 @@ describe('revenue routes', () => {
       enabled_services: 6,
       default_lane: 'detailed-request',
     });
+    expect(res.body).not.toHaveProperty('earnings');
   });
 
   it('lists lanes and services', async () => {

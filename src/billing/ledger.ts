@@ -23,6 +23,11 @@ export function rememberStripeEvent(eventId: string): boolean {
   return true;
 }
 
+export function forgetStripeEvent(eventId: string): void {
+  if (!eventId) return;
+  processedStripeEvents.delete(eventId);
+}
+
 export function createPayment(input: {
   lane: string;
   service: string;
@@ -82,7 +87,9 @@ export function updatePayment(id: string, patch: Partial<PaymentRecord>): Paymen
 }
 
 export function markPaymentStatus(id: string, status: PaymentStatus, extra: Partial<PaymentRecord> = {}): PaymentRecord {
-  return updatePayment(id, { ...extra, status });
+  const existing = payments.get(id);
+  const nextStatus = existing?.status === 'paid' && status !== 'paid' ? 'paid' : status;
+  return updatePayment(id, { ...extra, status: nextStatus });
 }
 
 export function findPaymentByStripeSession(sessionId: string): PaymentRecord | undefined {

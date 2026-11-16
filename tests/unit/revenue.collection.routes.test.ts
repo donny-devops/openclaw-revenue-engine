@@ -44,6 +44,15 @@ describe('money collection routes', () => {
     expect(earnings.body.earnings.collected_cents).toBe(2900);
   });
 
+  it('does not leak earnings on the public summary and requires operator auth for earnings', async () => {
+    const summary = await request(app).get('/revenue/summary');
+    expect(summary.status).toBe(200);
+    expect(summary.body).not.toHaveProperty('earnings');
+
+    const unauthEarnings = await request(app).get('/revenue/earnings');
+    expect(unauthEarnings.status).toBe(401);
+  });
+
   it('rejects checkout without a customer email', async () => {
     const res = await request(app).post('/revenue/checkout').send({
       body: 'Please review my GitHub portfolio repository and README.',

@@ -85,6 +85,11 @@ export function rememberClerkEvent(eventId: string): boolean {
   return true;
 }
 
+export function forgetClerkEvent(eventId: string): void {
+  if (!eventId) return;
+  processedEvents.delete(eventId);
+}
+
 export function resetClerkEventMemory(): void {
   processedEvents.clear();
 }
@@ -191,6 +196,7 @@ export async function clerkWebhookHandler(
         return;
     }
   } catch (err) {
+    forgetClerkEvent(svixId);
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Error processing Clerk webhook ${event.type}: ${redactSecrets(message)}`);
     res.status(500).json({ error: 'Internal webhook processing error' });

@@ -84,6 +84,25 @@ describe('billing ledger and usage', () => {
     expect(earnings.collected_usd).toBe(29);
   });
 
+  it('does not downgrade a paid payment when later marked pending', () => {
+    const payment = createPayment({
+      lane: 'detailed-request',
+      service: 'repo-triage',
+      amount_cents: 2900,
+      currency: 'usd',
+      customer_email: 'buyer@example.com',
+      simulated: false,
+    });
+    markPaymentStatus(payment.id, 'paid');
+    const updated = markPaymentStatus(payment.id, 'pending', {
+      checkout_url: 'https://checkout.stripe.com/c/pay/cs_live_1',
+      stripe_session_id: 'cs_live_1',
+    });
+    expect(updated.status).toBe('paid');
+    expect(updated.checkout_url).toBe('https://checkout.stripe.com/c/pay/cs_live_1');
+    expect(updated.stripe_session_id).toBe('cs_live_1');
+  });
+
   it('is idempotent for stripe events and invoice payments', () => {
     expect(rememberStripeEvent('evt_1')).toBe(true);
     expect(rememberStripeEvent('evt_1')).toBe(false);

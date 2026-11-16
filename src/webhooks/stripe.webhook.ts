@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { requireEnv } from '../lib/env';
 import {
   findPaymentByStripeSession,
+  forgetStripeEvent,
   getPayment,
   markPaymentStatus,
   recordInvoicePayment,
@@ -103,6 +104,7 @@ export function stripeWebhookHandler(
     }
     res.status(200).json({ received: true, eventType: event.type });
   } catch (err) {
+    forgetStripeEvent(event.id);
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Error processing Stripe webhook ${event.type}: ${message}`);
     res.status(500).json({ error: 'Internal webhook processing error' });

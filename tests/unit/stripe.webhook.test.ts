@@ -11,6 +11,7 @@
  */
 
 import type { Request, Response } from 'express';
+import { resetLedger } from '../../src/billing/ledger';
 import {
   buildStripePayload,
   STRIPE_TEST_SECRET_KEY,
@@ -223,6 +224,39 @@ describe('stripeWebhookHandler — internal handler error', () => {
     // Should be caught by the outer try/catch and returned as 500
     expect([200, 500]).toContain(captured.statusCode);
     errorSpy.mockRestore();
+  });
+
+  it('forgets a failed event so a retry of the same id is processed, not marked duplicate', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    resetLedger();
+    const eventId = 'evt_retry_after_failure';
+
+    mockConstructEvent.mockReturnValueOnce({
+      id: eventId,
+      type: 'customer.subscription.created',
+      data: { object: null },
+    });
+
+    const first = mockResponse();
+    stripeWebhookHandler(makeStripeReq('customer.subscription.created', {}), first.res as Response);
+    expect(first.statusCode).toBe(500);
+    expect(first.body).not.toEqual(expect.objectContaining({ duplicate: true }));
+
+    mockConstructEvent.mockReturnValueOnce({
+      id: eventId,
+      type: 'customer.subscription.created',
+      data: { object: { id: 'sub_retry_01', customer: 'cus_retry_01', status: 'active' } },
+    });
+
+    const retry = mockResponse();
+    stripeWebhookHandler(makeStripeReq('customer.subscription.created', {}), retry.res as Response);
+    expect(retry.statusCode).toBe(200);
+    expect(retry.body).toMatchObject({ received: true, eventType: 'customer.subscription.created' });
+    expect(retry.body).not.toEqual(expect.objectContaining({ duplicate: true }));
+
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
   });
 });
 

@@ -2,7 +2,11 @@ import type { Request, Response } from 'express';
 import crypto from 'crypto';
 
 import { clerkWebhookHandler, resetClerkEventMemory } from '../../src/webhooks/clerk.webhook';
-import { findMerchantByOrgId, resetMerchantStore } from '../../src/services/merchant.service';
+import {
+  findMerchantByOrgId,
+  resetMerchantStore,
+} from '../../src/services/merchant.service';
+import * as merchantService from '../../src/services/merchant.service';
 
 const TEST_SECRET = 'whsec_test_fixture_placeholder_00000000';
 const TEST_INTERNAL_SECRET = 'mesh_internal_secret_key_placeholder';
@@ -150,6 +154,40 @@ describe('Clerk Webhook Handler — OpenClaw Revenue Engine', () => {
     expect(merchant?.subscriptionId).toBe('sub_live_994411');
     expect(merchant?.subscriptionTier).toBe('enterprise-unlimited');
     expect(merchant?.subscriptionStatus).toBe('active');
+  });
+
+  it('forgets a failed event so the same svix-id can be retried', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const provisionSpy = jest
+      .spyOn(merchantService, 'provisionMerchantFromOrgMembership')
+      .mockRejectedValueOnce(new Error('stripe down'));
+
+    const payload = {
+      type: 'organizationMembership.created',
+      data: {
+        organization: { id: 'org_retry_fail_1', name: 'Retry Corp' },
+        public_user_data: { user_id: 'user_retry_fail_1' },
+        role: 'org:admin',
+      },
+    };
+
+    const req1 = makeSvixRequest(payload, TEST_SECRET, { 'svix-id': 'fixed_retry_after_failure' });
+    const res1 = mockResponse();
+    await clerkWebhookHandler(req1, res1 as Response);
+    expect(res1.statusCode).toBe(500);
+    expect(res1.body.duplicate).toBeUndefined();
+
+    provisionSpy.mockRestore();
+
+    const req2 = makeSvixRequest(payload, TEST_SECRET, { 'svix-id': 'fixed_retry_after_failure' });
+    const res2 = mockResponse();
+    await clerkWebhookHandler(req2, res2 as Response);
+    expect(res2.statusCode).toBe(200);
+    expect(res2.body.received).toBe(true);
+    expect(res2.body.duplicate).toBeUndefined();
+    expect(findMerchantByOrgId('org_retry_fail_1')).toBeDefined();
+
+    errorSpy.mockRestore();
   });
 
   it('deduplicates duplicate event deliveries idempotently', async () => {
