@@ -20,28 +20,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - Poll runner classification handoff to the revenue engine via `REVENUE_ENGINE_URL`
 - Secrets-gated Railway deploy workflow and `railway.json` Dockerfile healthcheck config
 
+### Changed
+- Rewrote README (and aligned CONTRIBUTING) with this checkout: Express API on `PORT` default 3000, SARA Plus seller-side routes, MCP tool list, poll runner (`python main.py --once --direct-api --poll-only`), and webhook `express.raw` mounting. Removed Grafana / SQS / OpenClaw gateway `:18789` / `src/engine` / `docker compose` claims.
+- Documented runtime constraints that already exist in code: in-memory payment/usage/SARA maps, no `docker-compose.yml`, unused `pg`/`ioredis` and unused `.env.example` `RATE_LIMIT_*` (live limiter is `express-rate-limit` 100/60s and webhook 30/60s in `src/index.ts`).
+- Switched CodeQL from GitHub Default Setup to Advanced Setup (workflow-driven) to eliminate `"analyses from advanced configurations cannot be processed"` errors
+
 ### Fixed
 - Replaced broken Full CI workflow (invalid nested YAML, Rust jobs on a Node repo, missing `test:api`/`test:contract` scripts, unconditional Railway deploys)
 - Made `npm run clean` work on Windows
 - Stripe and GitHub webhook handlers now persist collection state instead of only logging
-
-### Security
-- Secret redaction for Stripe/GitHub tokens in webhook error logs
-- Timing-safe operator API key comparison
-- Trust-proxy enabled for accurate rate limiting behind Railway/CDN
-
-
-### Fixed
 - `fix: add rate-limiter-flexible, ioredis, morgan to package.json` — removed stale `express-rate-limit` dep that was incompatible with the chosen limiter implementation
 - `fix: correct env var name RATE_LIMIT_MAX_REQUESTS → RATE_LIMIT_MAX` in `.env.example` to match what the code actually reads
 - `fix: scope codeql.yml to javascript-typescript only` — removed invalid `python` matrix entry on a TypeScript-only repo
 - `fix: replace duplicate CodeQL in codescan.yml with Trivy filesystem scan` — resolves conflict between advanced config and GitHub default setup
 - `fix: replace npm ci with npm install in eslint.yml` — removes lock-file dependency that caused `Cache restore failed` errors
 
-### Changed
-- Switched CodeQL from GitHub Default Setup to Advanced Setup (workflow-driven) to eliminate `"analyses from advanced configurations cannot be processed"` errors
-
 ### Security
+- Production Stripe fail-closed (**H3**): `src/billing/stripeClient.ts` throws at import unless `STRIPE_SECRET_KEY` is `sk_live_` / `rk_live_` when `NODE_ENV=production`. Simulated checkout is forbidden in production.
+- Router-level operator auth (**H4**): Bearer `OPERATOR_API_KEY` or JWT `JWT_SECRET`; both unset allows non-production and returns 503 in production.
+- TruffleHog OSS workflow fails the job on verified secrets (`extra_args: --results=verified --fail` in `.github/workflows/trufflehog.yml`). Policy: rotate the credential; do not allowlist a real secret. This does not claim the duplicate `--fail` CI flake is fixed.
+- Secret redaction for Stripe/GitHub tokens in webhook error logs
+- Timing-safe operator API key comparison
+- Trust-proxy enabled for accurate rate limiting behind Railway/CDN
 - Added Trivy filesystem scan (`CRITICAL`, `HIGH`) uploading SARIF results to GitHub Security tab
 
 ---

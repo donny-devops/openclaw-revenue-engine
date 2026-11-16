@@ -13,18 +13,35 @@ Thank you for considering contributing to this project! This document outlines t
 
 ## Development Setup
 
+This repo is a **Node/Express API** (`src/index.ts` + `src/server.ts`, listen `PORT` default **3000**) plus an **optional Python poll runner** (`main.py`). Full CI uses **Node 22.x**.
+
+It is **not** a Grafana/SQS stack and there is **no** `docker-compose.yml`. `.env.example` still lists `DATABASE_URL`, Redis, and `RATE_LIMIT_*`; those are unused under `src/`. The live limiter is hardcoded `express-rate-limit` (100/60s, webhook 30/60s). Ledger, usage, and SARA Plus orders are in-memory maps.
+
 ```bash
-# Clone the repository
 git clone https://github.com/donny-devops/openclaw-revenue-engine.git
 cd openclaw-revenue-engine
-
-# Install dependencies (see README for specifics)
-# Example for Python projects:
-# pip install -e ".[dev]"
-
-# Run tests
-# See README.md for project-specific test commands
+cp .env.example .env
 ```
+
+Set non-empty `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `GITHUB_WEBHOOK_SECRET` before starting the API. Import-time `requireEnv` in the Stripe/GitHub webhook modules throws if any of those are missing.
+
+```bash
+npm ci
+npm run dev          # ts-node src/server.ts
+curl -s http://localhost:3000/health
+npm test
+```
+
+**Production Stripe fail-closed (H3):** if `NODE_ENV=production`, `src/billing/stripeClient.ts` throws at import unless `STRIPE_SECRET_KEY` starts with `sk_live_` or `rk_live_`. Do not expect simulated checkout in production. Operator auth (H4) returns 503 in production when both `OPERATOR_API_KEY` and `JWT_SECRET` are unset.
+
+Optional poll runner (does not load `config/lanes.yaml`):
+
+```bash
+pip install -r requirements.txt
+python main.py --once --direct-api --poll-only --dry-run
+```
+
+See [README.md](README.md) for the HTTP API, SARA Plus constraints, MCP tools, and webhook raw-body requirements.
 
 ## Coding Standards
 
