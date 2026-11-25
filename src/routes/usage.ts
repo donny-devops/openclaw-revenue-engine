@@ -5,12 +5,14 @@ import { UsageMetricType } from '../models';
 import { requireOperatorAuth } from '../middleware/auth';
 import { getUsageSummary, recordUsageEvent } from '../billing/usageMeter';
 
+const tenantId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
 const usageEventSchema = z.object({
-  tenant_id: z.string().min(1),
+  tenant_id: tenantId,
   metric_type: z.nativeEnum(UsageMetricType),
-  quantity: z.number().nonnegative(),
-  unit: z.string().min(1).optional(),
-  idempotency_key: z.string().min(1).optional(),
+  quantity: z.number().finite().nonnegative().max(1_000_000_000),
+  unit: z.string().min(1).max(32).optional(),
+  idempotency_key: z.string().min(1).max(128).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -33,8 +35,13 @@ usageRouter.post('/events', requireOperatorAuth, (req: Request, res: Response) =
 });
 
 usageRouter.get('/summary', requireOperatorAuth, (req: Request, res: Response) => {
-  const tenantId = typeof req.query.tenant_id === 'string' ? req.query.tenant_id : undefined;
-  res.json({ summary: getUsageSummary(tenantId) });
+  const raw = req.query.tenant_id;
+  if (raw !== undefined && (typeof raw !== 'string' || !tenantId.safeParse(raw).success)) {
+    res.status(400).json({ error: 'Invalid tenant_id' });
+    return;
+  }
+  const tenant = typeof raw === 'string' ? raw : undefined;
+  res.json({ summary: getUsageSummary(tenant) });
 });
 
 export { usageRouter };
