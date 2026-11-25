@@ -88,6 +88,21 @@ describe('Clerk Webhook Handler — OpenClaw Revenue Engine', () => {
     expect(res.body.error).toContain('signature verification failed');
   });
 
+  it('rejects a valid signature whose timestamp is outside the five minute window', async () => {
+    const stale = String(Math.floor(Date.now() / 1000) - 60 * 60);
+    const req = makeSvixRequest(
+      { type: 'organizationMembership.created', data: { organization: { id: 'org_replay' } } },
+      TEST_SECRET,
+      { 'svix-id': 'msg_stale_replay', 'svix-timestamp': stale }
+    );
+    const res = mockResponse();
+
+    await clerkWebhookHandler(req, res as Response);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toContain('signature verification failed');
+    expect(findMerchantByOrgId('org_replay')).toBeUndefined();
+  });
+
   it('provisions merchant and creates Stripe customer on organizationMembership.created', async () => {
     const orgId = 'org_enterprise_9988';
     const userId = 'user_clerk_lead_11';

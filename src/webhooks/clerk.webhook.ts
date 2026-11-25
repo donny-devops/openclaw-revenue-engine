@@ -9,6 +9,15 @@ import { redactSecrets } from '../security/redact';
 
 const processedEvents = new Set<string>();
 
+/** Svix's documented replay window. Signatures outside it are rejected. */
+const SVIX_TOLERANCE_SECONDS = 5 * 60;
+
+function freshSvixTimestamp(raw: string | undefined, nowMs = Date.now()): boolean {
+  if (!raw || !/^\d{1,12}$/.test(raw)) return false;
+  const tsMs = Number(raw) * 1000;
+  return Number.isFinite(tsMs) && Math.abs(nowMs - tsMs) <= SVIX_TOLERANCE_SECONDS * 1000;
+}
+
 export function verifySvixSignature(
   rawBody: string | Buffer,
   headers: Record<string, string | string[] | undefined>,
@@ -36,6 +45,12 @@ export function verifySvixSignature(
   const svixSignature = headers['svix-signature'] as string;
 
   if (!svixId || !svixTimestamp || !svixSignature || !secret) {
+    return false;
+  }
+
+  // The id cache is in-memory and bounded, so a captured delivery can be
+  // replayed after eviction or restart unless the signed timestamp is fresh.
+  if (!freshSvixTimestamp(svixTimestamp)) {
     return false;
   }
 
