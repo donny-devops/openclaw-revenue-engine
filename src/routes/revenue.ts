@@ -29,6 +29,14 @@ const checkoutSchema = paidRequestSchema.extend({
   cancel_url: z.string().url().optional(),
 });
 
+const paymentIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+
+function readPaymentId(raw: string | string[] | undefined): string | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = paymentIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 const revenueRouter = Router();
 revenueRouter.use('/sara-plus', saraPlusRouter);
 
@@ -107,7 +115,12 @@ revenueRouter.get('/payments', (_req: Request, res: Response) => {
 });
 
 revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
-  const payment = getPayment(req.params.id);
+  const id = readPaymentId(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: 'Invalid payment id' });
+    return;
+  }
+  const payment = getPayment(id);
   if (!payment) {
     res.status(404).json({ error: 'Payment not found' });
     return;
@@ -117,8 +130,13 @@ revenueRouter.get('/payments/:id', (req: Request, res: Response) => {
 
 if (process.env.NODE_ENV !== 'production') {
   revenueRouter.post('/payments/:id/collect', (req: Request, res: Response) => {
+    const id = readPaymentId(req.params.id);
+    if (!id) {
+      res.status(400).json({ error: 'Invalid payment id' });
+      return;
+    }
     try {
-      const payment = simulatePaymentCollection(req.params.id);
+      const payment = simulatePaymentCollection(id);
       res.json({ payment });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown collection error';
