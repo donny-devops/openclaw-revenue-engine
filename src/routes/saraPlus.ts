@@ -14,20 +14,23 @@ import {
   updateSaraPlusOrder,
 } from '../saraPlus';
 
+const shortText = z.string().trim().min(1).max(120);
+const notesText = z.string().max(4000);
+
 const reviewSchema = z.object({
-  step: z.string().optional(),
-  text: z.string().optional(),
+  step: shortText.optional(),
+  text: notesText.optional(),
 });
 
 const handoffSchema = z.object({
   channel: z.enum(['sms', 'email', 'telegram', 'slack', 'discord']).optional(),
-  customer_first_name: z.string().optional(),
-  seller_name: z.string().optional(),
+  customer_first_name: shortText.optional(),
+  seller_name: shortText.optional(),
 });
 
 const orderSchema = z.object({
-  customer_display_name: z.string().optional(),
-  order_ref: z.string().optional(),
+  customer_display_name: shortText.optional(),
+  order_ref: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   status: z.enum([
     'seller_prep',
     'awaiting_secure_link',
@@ -37,10 +40,12 @@ const orderSchema = z.object({
     'seller_advance',
     'blocked_compliance',
   ]).optional(),
-  last_step: z.string().optional(),
+  last_step: shortText.optional(),
   waiting_on: z.enum(['seller', 'customer', 'id_auth', 'none']).optional(),
-  notes: z.string().optional(),
+  notes: notesText.optional(),
 });
+
+const orderIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 
 const saraPlusRouter = Router();
 
@@ -83,11 +88,17 @@ saraPlusRouter.post('/handoff-draft', (req: Request, res: Response) => {
 });
 
 saraPlusRouter.get('/orders', requireOperatorAuth, (req: Request, res: Response) => {
-  const staleMinutes = Number(req.query.stale_minutes);
   if (req.query.reminders === 'true') {
-    const staleMs = Number.isFinite(staleMinutes) && staleMinutes > 0
-      ? staleMinutes * 60 * 1000
-      : undefined;
+    const raw = req.query.stale_minutes;
+    let staleMs: number | undefined;
+    if (raw !== undefined) {
+      const staleMinutes = Number(raw);
+      if (!Number.isFinite(staleMinutes) || staleMinutes < 1 || staleMinutes > 10_080) {
+        res.status(400).json({ error: 'stale_minutes must be between 1 and 10080' });
+        return;
+      }
+      staleMs = staleMinutes * 60 * 1000;
+    }
     res.json({ orders: listOrdersNeedingFollowUp(Date.now(), staleMs) });
     return;
   }
@@ -111,8 +122,9 @@ saraPlusRouter.post('/orders', requireOperatorAuth, (req: Request, res: Response
 });
 
 const orderId = (req: Request): string | undefined => {
-  const value = req.params.id;
-  return typeof value === 'string' && value.trim() ? value : undefined;
+  const value = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const parsed = orderIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 };
 
 saraPlusRouter.patch('/orders/:id', requireOperatorAuth, (req: Request, res: Response) => {
