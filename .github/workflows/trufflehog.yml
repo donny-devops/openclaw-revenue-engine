@@ -30,7 +30,9 @@ jobs:
 
       # Fail the job on verified (live) secrets.
       # Policy: rotate the credential; do not allowlist a real secret.
+      # The action already passes --fail; repeating it in extra_args errors with
+      # "flag 'fail' cannot be repeated" (exit 1) and never runs the scan.
       - name: TruffleHog OSS
         uses: trufflesecurity/trufflehog@v3.97.9
         with:
-          extra_args: --results=verified --fail
+          extra_args: --results=verified
