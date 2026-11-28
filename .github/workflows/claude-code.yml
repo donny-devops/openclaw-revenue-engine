@@ -10,20 +10,7 @@ name: Claude Code — MaxClaw Maintenance
 # Both jobs inherit ANTHROPIC_API_KEY from repo secrets (already wired by
 # .github/workflows/poll.yml).
 
-on : 
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - "services/readme_generator/**"
-      - "Lanes/quick_question.py"
-      - "main.py"
-      - "config/lanes.yaml"
-      
-  schedue:
-    # Weekly: Mondays 09:00 UTC
-    - cron : "0 9 * * 1"
-  workflow_dispatch:
-  
+on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -36,7 +23,7 @@ on :
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
- permissions:
+permissions:
   id-token: write       # Required for Claude Code OIDC authentication
   contents: write       # Needed to push code / open tuning branches
   pull-requests: write  # Needed to comment on and open PRs
@@ -47,19 +34,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────
   # Job 1: PR Review — triggered on pull_request touching the service
-  # ─────────────────────────────────────────────────────────────────────
   review-readme-generator-pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write # Required for OIDC token generation
-      contents: read # Add any other permissions the job needs (e.g., contents: write if pushing)
-    steps:
-      - uses: actions/checkout@v7
     timeout-minutes: 10
     continue-on-error: true
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Check ANTHROPIC_API_KEY is configured
         id: check-key
@@ -109,9 +92,7 @@ jobs:
             Leave a concise review. Only request changes if you find a
             concrete issue in the categories above.
 
-  # ─────────────────────────────────────────────────────────────────────
   # Job 2: Weekly Self-Tune — triggered on schedule or workflow_dispatch
-  # ─────────────────────────────────────────────────────────────────────
   weekly-prompt-self-tune:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
