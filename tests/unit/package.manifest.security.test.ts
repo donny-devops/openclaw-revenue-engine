@@ -43,10 +43,10 @@ describe('package manifests security regression', () => {
       expectVersionAtLeast(version, '6.16.0');
     });
 
-    const proxyAddrVersions = packageVersionsFor('proxy-addr');
-    expect(proxyAddrVersions.length).toBeGreaterThan(0);
-    proxyAddrVersions.forEach((version) => {
-      expectVersionAtLeast(version, '2.0.8');
+    const zodVersions = packageVersionsFor('zod');
+    expect(zodVersions.length).toBeGreaterThan(0);
+    zodVersions.forEach((version) => {
+      expectVersionAtLeast(version, '4.6.6');
     });
   });
 });

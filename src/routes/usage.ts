@@ -9,11 +9,11 @@ const tenantId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 
 const usageEventSchema = z.object({
   tenant_id: tenantId,
-  metric_type: z.nativeEnum(UsageMetricType),
+  metric_type: z.enum(UsageMetricType),
   quantity: z.number().finite().nonnegative().max(1_000_000_000),
   unit: z.string().min(1).max(32).optional(),
   idempotency_key: z.string().min(1).max(128).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const usageRouter = Router();

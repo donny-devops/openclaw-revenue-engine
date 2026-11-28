@@ -19,14 +19,14 @@ const paidRequestSchema = z.object({
   body: z.string().min(1),
   lane: z.string().optional(),
   service: z.string().optional(),
-  customer_email: z.string().email().optional(),
+  customer_email: z.email().optional(),
   source: z.string().optional(),
 });
 
 const checkoutSchema = paidRequestSchema.extend({
-  customer_email: z.string().email(),
-  success_url: z.string().url().optional(),
-  cancel_url: z.string().url().optional(),
+  customer_email: z.email(),
+  success_url: z.url().optional(),
+  cancel_url: z.url().optional(),
 });
 
 const paymentIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
