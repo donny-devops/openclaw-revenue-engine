@@ -65,7 +65,7 @@ saraPlusRouter.get('/workflow', (_req: Request, res: Response) => {
 saraPlusRouter.post('/review-action', requireOperatorAuth, (req: Request, res: Response) => {
   const parsed = reviewSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid SARA Plus review payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid SARA Plus review payload', details: z.flattenError(parsed.error) });
     return;
   }
 
@@ -75,7 +75,7 @@ saraPlusRouter.post('/review-action', requireOperatorAuth, (req: Request, res: R
 saraPlusRouter.post('/handoff-draft', (req: Request, res: Response) => {
   const parsed = handoffSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid SARA Plus handoff payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid SARA Plus handoff payload', details: z.flattenError(parsed.error) });
     return;
   }
 
@@ -109,7 +109,7 @@ saraPlusRouter.get('/orders', requireOperatorAuth, (req: Request, res: Response)
 saraPlusRouter.post('/orders', requireOperatorAuth, (req: Request, res: Response) => {
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid SARA Plus order payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid SARA Plus order payload', details: z.flattenError(parsed.error) });
     return;
   }
 
@@ -130,7 +130,7 @@ const orderId = (req: Request): string | undefined => {
 saraPlusRouter.patch('/orders/:id', requireOperatorAuth, (req: Request, res: Response) => {
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid SARA Plus order payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid SARA Plus order payload', details: z.flattenError(parsed.error) });
     return;
   }
 
