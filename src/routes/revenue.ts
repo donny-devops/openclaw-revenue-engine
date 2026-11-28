@@ -74,7 +74,7 @@ revenueRouter.get('/openclaw', (_req: Request, res: Response) => {
 revenueRouter.post('/classify', (req: Request, res: Response) => {
   const parsed = paidRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid paid request payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid paid request payload', details: z.flattenError(parsed.error) });
     return;
   }
 
@@ -90,7 +90,7 @@ revenueRouter.post('/classify', (req: Request, res: Response) => {
 revenueRouter.post('/checkout', async (req: Request, res: Response) => {
   const parsed = checkoutSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid checkout payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid checkout payload', details: z.flattenError(parsed.error) });
     return;
   }
 

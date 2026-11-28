@@ -21,7 +21,7 @@ const usageRouter = Router();
 usageRouter.post('/events', requireOperatorAuth, (req: Request, res: Response) => {
   const parsed = usageEventSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid usage event payload', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Invalid usage event payload', details: z.flattenError(parsed.error) });
     return;
   }
 
