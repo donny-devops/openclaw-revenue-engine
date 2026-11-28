@@ -24,13 +24,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       # Fail the job on verified (live) secrets.
+      # The action already injects --fail; repeating it makes TruffleHog exit
+      # with "flag 'fail' cannot be repeated".
       # Policy: rotate the credential; do not allowlist a real secret.
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@v3.97.9
+        uses: trufflesecurity/trufflehog@4dd8831c5f12599465d4d45c3c447b4018a34c85 # v3.97.9
         with:
-          extra_args: --results=verified --fail
+          extra_args: --results=verified

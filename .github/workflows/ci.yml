@@ -8,12 +8,8 @@ on:
   workflow_dispatch:
 
 env:
-  CI: "true"
   NODE_ENV: test
   LOG_LEVEL: silent
-  STRIPE_SECRET_KEY: sk_test_ci_placeholder
-  STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
-  GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
 
 permissions:
   contents: read
@@ -33,10 +29,12 @@ jobs:
         node: [22.x]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -52,6 +50,10 @@ jobs:
         run: npm run type-check --if-present
 
       - name: Unit and integration tests
+        env:
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+          GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
         run: npm test
 
       - name: Build
@@ -59,7 +61,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-node-${{ matrix.node }}
           path: coverage
@@ -72,10 +74,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
 

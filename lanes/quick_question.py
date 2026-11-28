@@ -138,7 +138,7 @@ def handle(
     """
     Entry point for the Quick Question lane.
 
-    Called by main.py once per poll cycle (every 5 min via .github/workflows/poll.yml).
+    Called by main.py once per poll cycle (every 15 min via .github/workflows/poll.yml).
     """
     client = client or MoltgateClient()
     new_messages = client.list_new_messages(lane_slug=lane_slug)
