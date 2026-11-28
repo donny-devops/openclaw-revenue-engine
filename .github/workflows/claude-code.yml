@@ -15,7 +15,6 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - "services/readme_generator/**"
-      - "Lanes/quick_question.py"
       - "lanes/quick_question.py"
       - "main.py"
       - "config/lanes.yaml"
@@ -35,7 +34,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
   # Job 1: PR Review — triggered on pull_request touching the service
   # ─────────────────────────────────────────────────────────────────────
   review-readme-generator-pr:
@@ -43,10 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
+    # Job permissions replace the workflow set. Review only reads the PR
+    # and comments; it must not inherit contents: write.
     permissions:
-      id-token: write # Required for OIDC token generation
+      id-token: write
       contents: read
-      pull-requests: write # Review comments
+      pull-requests: write
     steps:
       - name: Check ANTHROPIC_API_KEY is configured
         id: check-key
@@ -103,6 +104,10 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
       - name: Check out main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
