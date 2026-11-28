@@ -25,7 +25,7 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 5  # Concurrency guard prevents overlap; allow full poll window
+    timeout-minutes: 4  # Die before the next 5-minute cron so a hang does not skip a window
     steps:
       - name: Harden the runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
