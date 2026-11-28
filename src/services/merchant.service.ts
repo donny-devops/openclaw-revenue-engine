@@ -1,5 +1,8 @@
 import { getStripe, isSimulatedStripe } from '../billing/stripeClient';
 
+/** Strip newlines so user-controlled values cannot forge log lines. */
+const safeLog = (v: unknown): string => String(v ?? '').replace(/[\r\n]/g, ' ');
+
 export interface MerchantRecord {
   id: string;
   clerkOrgId: string;
@@ -89,7 +92,7 @@ export async function provisionMerchantFromOrgMembership(
   merchantsByOrgId.set(params.orgId, merchant);
   merchantsById.set(merchant.id, merchant);
 
-  console.log(`[MerchantService] Provisioned merchant ${merchant.id} for Clerk Org ${params.orgId} (Stripe Customer: ${stripeCustomerId})`);
+  console.log(`[MerchantService] Provisioned merchant ${safeLog(merchant.id)} for Clerk Org ${safeLog(params.orgId)} (Stripe Customer: ${safeLog(stripeCustomerId)})`);
   return merchant;
 }
 
@@ -133,7 +136,7 @@ export async function syncMerchantSubscription(
   merchantsByOrgId.set(merchant.clerkOrgId, merchant);
   merchantsById.set(merchant.id, merchant);
 
-  console.log(`[MerchantService] Updated subscription for merchant ${merchant.id}: status=${merchant.subscriptionStatus}, tier=${merchant.subscriptionTier}`);
+  console.log(`[MerchantService] Updated subscription for merchant ${safeLog(merchant.id)}: status=${safeLog(merchant.subscriptionStatus)}, tier=${safeLog(merchant.subscriptionTier)}`);
   return merchant;
 }
 

@@ -12,6 +12,9 @@ const processedEvents = new Set<string>();
 /** Svix's documented replay window. Signatures outside it are rejected. */
 const SVIX_TOLERANCE_SECONDS = 5 * 60;
 
+/** Strip newlines so user-controlled values cannot forge log lines. */
+const safeLog = (v: unknown): string => String(v ?? '').replace(/[\r\n]/g, ' ');
+
 function freshSvixTimestamp(raw: string | undefined, nowMs = Date.now()): boolean {
   if (!raw || !/^\d{1,12}$/.test(raw)) return false;
   const tsMs = Number(raw) * 1000;
@@ -147,7 +150,7 @@ export async function clerkWebhookHandler(
     return;
   }
 
-  console.log(`Clerk webhook received: ${event.type} [${svixId}]`);
+  console.log(`Clerk webhook received: ${safeLog(event.type)} [${safeLog(svixId)}]`);
 
   try {
     switch (event.type) {
@@ -201,13 +204,13 @@ export async function clerkWebhookHandler(
       }
 
       default:
-        console.log(`Unhandled Clerk event: ${event.type}`);
+        console.log(`Unhandled Clerk event: ${safeLog(event.type)}`);
         res.status(200).json({ received: true, eventType: event.type, status: 'ignored' });
         return;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Error processing Clerk webhook ${event.type}: ${redactSecrets(message)}`);
+    console.error(`Error processing Clerk webhook ${safeLog(event.type)}: ${redactSecrets(message)}`);
     res.status(500).json({ error: 'Internal webhook processing error' });
   }
 }
