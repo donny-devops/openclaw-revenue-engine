@@ -21,6 +21,7 @@ jobs:
   deploy:
     name: Deploy ${{ inputs.version }} to Render
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Requires repo secrets: RENDER_SERVICE_ID, RENDER_API_KEY
     # Set them at Settings → Secrets → Actions in the GitHub repo.
 

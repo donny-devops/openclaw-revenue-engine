@@ -12,6 +12,7 @@ jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -20,10 +21,10 @@ jobs:
           egress-policy: audit
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v5
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5
         with:
           # Policy (fail-on-severity, comment-summary-in-pr, deny-licenses)
           # is defined in .github/dependency-review-config.yml.

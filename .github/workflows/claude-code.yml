@@ -36,7 +36,7 @@ on :
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
- permissions:
+permissions:
   id-token: write       # Required for Claude Code OIDC authentication
   contents: write       # Needed to push code / open tuning branches
   pull-requests: write  # Needed to comment on and open PRs
@@ -57,7 +57,7 @@ jobs:
       id-token: write # Required for OIDC token generation
       contents: read # Add any other permissions the job needs (e.g., contents: write if pushing)
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
     timeout-minutes: 10
     continue-on-error: true
     steps:
@@ -75,13 +75,13 @@ jobs:
 
       - name: Check out PR
         if: steps.check-key.outputs.has_key == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Claude Code review
         if: steps.check-key.outputs.has_key == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4411a9e9b0283becf4b924f7bce360fd7756c78c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -118,13 +118,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -139,7 +139,7 @@ jobs:
         run: pytest tests/unit/ -v
 
       - name: Claude Code prompt self-tune
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@4411a9e9b0283becf4b924f7bce360fd7756c78c # v1
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
