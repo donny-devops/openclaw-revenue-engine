@@ -8,12 +8,8 @@ on:
   workflow_dispatch:
 
 env:
-  CI: "true"
   NODE_ENV: test
   LOG_LEVEL: silent
-  STRIPE_SECRET_KEY: sk_test_ci_placeholder
-  STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
-  GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
 
 permissions:
   contents: read
@@ -52,6 +48,10 @@ jobs:
         run: npm run type-check --if-present
 
       - name: Unit and integration tests
+        env:
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+          GITHUB_WEBHOOK_SECRET: ci_github_webhook_placeholder
         run: npm test
 
       - name: Build
