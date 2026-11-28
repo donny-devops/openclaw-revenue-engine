@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       image: ${{ steps.meta.outputs.tags && format('ghcr.io/{0}', github.repository) || '' }}
-      version: ${{ steps.meta.outputs.version }}
+      version: ${{ steps.image-tag.outputs.tag }}
 
     steps:
       - name: Check out repository
@@ -54,6 +54,18 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Resolve immutable image tag
+        id: image-tag
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          tag=$(printf '%s\n' "$TAGS" | awk -F: '/:sha-/ {print $NF; exit}')
+          if [ -z "$tag" ]; then
+            echo "::error::metadata-action did not produce a sha- tag."
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
@@ -72,4 +84,6 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       version: ${{ needs.build-and-push.outputs.version }}
-    secrets: inherit
+    secrets:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}

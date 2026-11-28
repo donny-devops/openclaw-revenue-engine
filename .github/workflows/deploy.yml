@@ -4,13 +4,18 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "Image version tag produced by the Docker workflow"
+        description: "Image tag to deploy (the sha- tag produced by the Docker workflow)"
         required: true
         type: string
+    secrets:
+      RENDER_API_KEY:
+        required: true
+      RENDER_SERVICE_ID:
+        required: true
   workflow_dispatch:
     inputs:
       version:
-        description: "Image version tag to deploy (e.g. main, sha-abc1234, v1.0.0)"
+        description: "Image tag to deploy (e.g. sha-abc1234, main, v1.0.0)"
         required: true
         type: string
 
@@ -22,8 +27,6 @@ jobs:
     name: Deploy ${{ inputs.version }} to Render
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Requires repo secrets: RENDER_SERVICE_ID, RENDER_API_KEY
-    # Set them at Settings → Secrets and variables → Actions.
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
@@ -32,45 +35,93 @@ jobs:
     steps:
       - name: Trigger Render deploy
         run: |
-          echo "Deploying ${IMAGE_REF} to Render …"
-          response=$(curl -fsSL \
-            --retry 3 --retry-delay 5 \
+          set -euo pipefail
+          tag="${IMAGE_REF##*:}"
+          if [ -z "$tag" ] || [ "$tag" = "$IMAGE_REF" ]; then
+            echo "::error::Refusing to deploy without an image tag."
+            exit 1
+          fi
+          echo "Deploying ${IMAGE_REF}"
+          # imageUrl rolls this tag out now. It does not change the tag saved
+          # on the service, and it does not touch the registry credential.
+          # Host, repository, and image name must already match the service.
+          payload=$(jq -n --arg image "$IMAGE_REF" '{clearCache: "do_not_clear", imageUrl: $image}')
+          http_status=$(curl -sS --retry 3 --retry-delay 5 \
+            -o response.json -w "%{http_code}" \
             -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{"clearCache": "do_not_clear"}')
-          echo "$response"
-          deploy_id=$(echo "$response" | jq -r '.id // .deploy.id // empty')
-          if [ -z "$deploy_id" ]; then
-            echo "::error::Render deploy API did not return a deploy ID — check RENDER_SERVICE_ID and RENDER_API_KEY secrets."
+            -d "$payload")
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            message=$(jq -r '.message // .error // "Render deploy API rejected the request."' response.json 2>/dev/null || true)
+            echo "::error::Render deploy API returned HTTP ${http_status}: ${message}"
             exit 1
           fi
-          echo "Deploy triggered: $deploy_id"
-          echo "Track it at: https://dashboard.render.com/web/${RENDER_SERVICE_ID}/deploys/$deploy_id"
+          deploy_id=$(jq -r '.id // .deploy.id // empty' response.json)
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render deploy API did not return a deploy ID."
+            exit 1
+          fi
+          echo "Deploy id: $deploy_id"
           echo "deploy_id=$deploy_id" >> "$GITHUB_ENV"
 
-      - name: Smoke test — wait for service to be live
+      - name: Wait for the deploy to go live
         run: |
-          # Fetch the service URL from the Render API
-          service_info=$(curl -fsSL \
-            --retry 3 --retry-delay 5 \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}")
-          service_url=$(echo "$service_info" | jq -r '.service.serviceDetails.url // .serviceDetails.url // empty')
-          if [ -z "$service_url" ]; then
-            echo "::warning::Could not resolve service URL from Render API — skipping smoke test"
-            exit 0
-          fi
-          health_url="${service_url}/health"
-          echo "Polling $health_url (up to 5 min, 10 s intervals)…"
+          set -euo pipefail
+          echo "Waiting for deploy ${deploy_id} to become live…"
+          status=""
           for i in $(seq 1 30); do
-            http_status=$(curl -o /dev/null -s -w "%{http_code}" "$health_url" || echo "000")
-            if [ "$http_status" = "200" ]; then
-              echo "✓ Health check passed on attempt $i ($health_url → 200)"
-              exit 0
+            http_status=$(curl -sS --retry 3 --retry-delay 5 \
+              -o deploy.json -w "%{http_code}" \
+              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}")
+            if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+              echo "::error::Could not read deploy ${deploy_id} (HTTP ${http_status})."
+              exit 1
             fi
-            echo "  attempt $i: $http_status — retrying in 10 s"
+            status=$(jq -r '.status // .deploy.status // empty' deploy.json)
+            case "$status" in
+              live)
+                echo "Deploy ${deploy_id} is live."
+                exit 0
+                ;;
+              build_failed|update_failed|canceled|pre_deploy_failed)
+                echo "::error::Deploy ${deploy_id} ended as ${status}."
+                exit 1
+                ;;
+            esac
+            echo "  attempt $i: ${status:-unknown}"
             sleep 10
           done
-          echo "::error::Health check timed out after 5 minutes ($health_url never returned 200)"
+          echo "::error::Deploy ${deploy_id} did not go live within 5 minutes (last status: ${status:-unknown})."
+          exit 1
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          http_status=$(curl -sS --retry 3 --retry-delay 5 \
+            -o service.json -w "%{http_code}" \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}")
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            echo "::error::Could not read the Render service (HTTP ${http_status})."
+            exit 1
+          fi
+          service_url=$(jq -r '.service.serviceDetails.url // .serviceDetails.url // empty' service.json)
+          if [ -z "$service_url" ]; then
+            echo "::error::Render service URL is missing. Refusing to mark the deploy healthy."
+            exit 1
+          fi
+          health_url="${service_url}/health"
+          echo "Polling ${health_url}"
+          for i in $(seq 1 30); do
+            code=$(curl -o /dev/null -s -w "%{http_code}" "$health_url" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "Health check passed on attempt $i."
+              exit 0
+            fi
+            echo "  attempt $i: $code"
+            sleep 10
+          done
+          echo "::error::Health check timed out after 5 minutes (${health_url} never returned 200)."
           exit 1
